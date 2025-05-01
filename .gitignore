@@ -1,0 +1,89 @@
+import React, { useState } from "react";
+
+const productos = [ { id: 1, nombre: "Merluza", precio: 10, unidad: "kg" }, { id: 2, nombre: "Salmón", precio: 15, unidad: "kg" }, { id: 3, nombre: "Camarones", precio: 20, unidad: "kg" }, ];
+
+export default function App() { const [carrito, setCarrito] = useState([]); const [pedidos, setPedidos] = useState([]); const [nombreCliente, setNombreCliente] = useState(""); const [telefonoCliente, setTelefonoCliente] = useState("");
+
+const agregarAlCarrito = (producto) => { setCarrito([...carrito, producto]); };
+
+const enviarPedido = () => { if (!nombreCliente || !telefonoCliente) return;
+
+const nuevoPedido = {
+  id: Date.now(),
+  cliente: {
+    nombre: nombreCliente,
+    telefono: telefonoCliente,
+  },
+  productos: carrito,
+  estado: "Pendiente",
+};
+setPedidos([...pedidos, nuevoPedido]);
+setCarrito([]);
+setNombreCliente("");
+setTelefonoCliente("");
+};
+
+const cambiarEstado = (id, nuevoEstado) => { setPedidos( pedidos.map((p) => p.id === id ? { ...p, estado: nuevoEstado } : p ) ); };
+
+return (
+
+{/* Catálogo */}
+Catálogo
+{productos.map((producto) => (
+{producto.nombre}
+{producto.precio} €/ {producto.unidad}
+
+<button className="bg-blue-500 text-white px-4 py-2 rounded" onClick={() => agregarAlCarrito(producto)}> Agregar
+))}
+  {/* Carrito */}
+  <div>
+    <h2 className="text-xl font-bold mb-4">Carrito</h2>
+    <ul className="mb-4">
+      {carrito.map((item, index) => (
+        <li key={index}>{item.nombre} - {item.precio} €</li>
+      ))}
+    </ul>
+    <div className="grid gap-2 mb-4">
+      <input
+        className="border p-2 rounded"
+        placeholder="Nombre del cliente"
+        value={nombreCliente}
+        onChange={(e) => setNombreCliente(e.target.value)}
+      />
+      <input
+        className="border p-2 rounded"
+        placeholder="Teléfono del cliente"
+        value={telefonoCliente}
+        onChange={(e) => setTelefonoCliente(e.target.value)}
+      />
+    </div>
+    <button className="bg-green-600 text-white px-4 py-2 rounded" onClick={enviarPedido} disabled={carrito.length === 0}>
+      Enviar Pedido
+    </button>
+  </div>
+
+  {/* Panel de Pedidos */}
+  <div className="md:col-span-2">
+    <h2 className="text-xl font-bold mb-4">Pedidos Recibidos</h2>
+    <div className="grid gap-4">
+      {pedidos.map((pedido) => (
+        <div key={pedido.id} className="border p-4 rounded shadow">
+          <p><strong>ID Pedido:</strong> {pedido.id}</p>
+          <p><strong>Cliente:</strong> {pedido.cliente.nombre} - {pedido.cliente.telefono}</p>
+          <p><strong>Estado:</strong> {pedido.estado}</p>
+          <ul className="my-2">
+            {pedido.productos.map((prod, i) => (
+              <li key={i}>{prod.nombre} - {prod.precio} €</li>
+            ))}
+          </ul>
+          <div className="flex gap-2">
+            <button className="bg-yellow-500 text-white px-3 py-1 rounded" onClick={() => cambiarEstado(pedido.id, "En preparación")}>En preparación</button>
+            <button className="bg-green-700 text-white px-3 py-1 rounded" onClick={() => cambiarEstado(pedido.id, "Listo")}>Listo</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+); }
+
