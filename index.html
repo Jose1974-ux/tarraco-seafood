@@ -21,6 +21,14 @@ header{background:var(--navy);color:white;padding:18px max(18px,calc((100% - 128
 <div id="stats" class="grid"></div><nav id="nav" class="nav"></nav><div id="panel"></div></section>
 <footer>Los pedidos y tarifas se guardan en la base de datos. Esta aplicación no realiza cobros.</footer></main>
 <script>
+window.addEventListener('error',function(e){
+ const s=document.getElementById('status');
+ if(s){s.textContent='Error al iniciar';const n=document.getElementById('notice');if(n){n.textContent='Error de JavaScript: '+(e.message||'No se pudo iniciar la aplicación')+(e.lineno?' (línea '+e.lineno+')':'');n.className='notice error'}}
+});
+window.addEventListener('unhandledrejection',function(e){
+ const s=document.getElementById('status');
+ if(s){s.textContent='Error de conexión';const n=document.getElementById('notice');if(n){n.textContent='Error al iniciar la conexión: '+(e.reason&&e.reason.message?e.reason.message:String(e.reason||'Error desconocido'));n.className='notice error'}}
+});
 const SUPABASE_URL='https://lmenenuazdqshfrwrwqy.supabase.co';
 const SUPABASE_KEY='sb_publishable_TWIhH7FYUGWfy83WgLpVjw_zTw92O5Y';
 let db=null;
@@ -51,7 +59,7 @@ function clearMsg(){$('notice').className='notice hidden'}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function euro(v){return new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(Number(v||0))}
 function date(v){return v?new Date(v).toLocaleString('es-ES'):'—'}
-async function boot(){try{await ensureSupabaseLibrary();db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const {data,error}=await db.auth.getSession();if(error)throw error;$('status').textContent='Conexión disponible';if(data.session)await enter(data.session.user)}catch(e){$('status').textContent='Error de conexión';msg('No se pudo conectar con Supabase: '+e.message,'error')}}
+async function boot(){try{$('status').textContent='Preparando conexión…';await ensureSupabaseLibrary();$('status').textContent='Conectando con Supabase…';db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});const result=await Promise.race([db.auth.getSession(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado. Comprueba la red o bloqueadores del navegador.')),15000))]);const {data,error}=result;if(error)throw error;$('status').textContent='Conexión disponible';if(data.session)await enter(data.session.user)}catch(e){$('status').textContent='Error de conexión';msg('No se pudo conectar con Supabase: '+(e&&e.message?e.message:String(e)),'error');console.error('Error al iniciar Tarraco:',e)}}
 async function loginNow(){const b=$('loginButton');clearMsg();b.disabled=true;b.textContent='Comprobando acceso…';$('status').textContent='Validando credenciales…';try{const email=$('email').value.trim();const password=$('password').value;if(!email||!password)throw Error('Escribe el correo y la contraseña.');const {data,error}=await db.auth.signInWithPassword({email,password});if(error)throw error;if(!data||!data.user)throw Error('Supabase no ha devuelto un usuario válido.');$('status').textContent='Acceso correcto; comprobando perfil…';await enter(data.user)}catch(x){$('status').textContent='No se pudo iniciar sesión';msg('No se ha podido iniciar sesión: '+(x&&x.message?x.message:String(x)),'error')}finally{b.disabled=false;b.textContent='Iniciar sesión'}}$('loginForm').addEventListener('submit',e=>{e.preventDefault();loginNow()});
 async function enter(u){user=u;try{const {data,error}=await db.from('profiles').select('role,display_name,company_id').eq('id',u.id).single();if(error)throw error;profile=data;if(!['admin','customer'].includes(data.role))throw Error('El perfil no tiene un rol autorizado');$('login').classList.add('hidden');$('app').classList.remove('hidden');$('logout').classList.remove('hidden');$('welcome').textContent=(data.display_name||u.email)+' · '+u.email;await refresh();startLiveUpdates()}catch(e){await db.auth.signOut();user=null;$('login').classList.remove('hidden');$('app').classList.add('hidden');msg('No se pudo validar el usuario: '+e.message,'error')}}
 async function logout(){await db.auth.signOut();user=null;profile=null;cart={};$('app').classList.add('hidden');$('logout').classList.add('hidden');$('login').classList.remove('hidden');$('status').textContent='Sesión cerrada'}
