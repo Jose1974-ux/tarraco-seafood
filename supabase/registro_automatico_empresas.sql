@@ -1,6 +1,6 @@
 -- Registro voluntario de empresas. Aplicar tras revisión en Supabase.
 -- No modifica las contraseñas ni los perfiles existentes.
-create or replace function auth.tarraco_register_company()
+create or replace function public.tarraco_register_company()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
 declare new_company_id uuid;
@@ -26,7 +26,7 @@ begin
   return new;
 end;
 $$;
-revoke all on function auth.tarraco_register_company() from public, anon, authenticated;
+revoke all on function public.tarraco_register_company() from public, anon, authenticated;
 drop trigger if exists tarraco_self_registration on auth.users;
 create trigger tarraco_self_registration after insert on auth.users
-for each row execute function auth.tarraco_register_company();
+for each row execute function public.tarraco_register_company();
