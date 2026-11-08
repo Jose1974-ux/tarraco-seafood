@@ -1,0 +1,21 @@
+GUION DEL NUEVO VÍDEO DE DEMOSTRACIÓN — CLIENTES
+TARRACO SEA FOOD 2002 SL
+Objetivo: aproximadamente 3–4 minutos, voz en castellano de España.
+IMPORTANTE: grabar las pantallas reales cuando la versión de pruebas esté verificada. No sustituir el MP4 actual hasta terminar.
+
+[00:00–00:25] Bienvenido al portal de pedidos de Tarraco Sea Food. En este vídeo aprenderás a hacer tus pedidos, consultar sus estados y comunicarte con nosotros de forma sencilla.
+[00:25–00:45] Inicia sesión con el correo electrónico o el móvil vinculado a tu cuenta y tu contraseña. En el panel, pulsa Hacer pedido.
+[00:45–01:10] Busca el pescado por su nombre o código. Puedes consultar los precios, localizar tus favoritos y ver las ofertas del día claramente destacadas.
+[01:10–01:45] Para añadir un artículo, selecciona la unidad permitida: kilos, piezas, cajas, bolsas, sacos o docenas, según el producto. Introduce la cantidad y, si lo necesitas, escribe cómo quieres que lo preparemos. Pulsa Añadir. Los botones te indicarán la selección realizada.
+[01:45–02:05] Si un artículo aparece con el aviso rojo SIN EXISTENCIAS, significa que no está disponible temporalmente y no podrás añadirlo al pedido. Los demás artículos siguen disponibles normalmente.
+[02:05–02:30] Revisa el pedido, elige envío o recogida, añade observaciones y pulsa Enviar pedido. Aparecerá un mensaje de agradecimiento que confirma el envío.
+[02:30–02:55] En Mis pedidos puedes consultar los artículos, las cantidades y el estado de cada pedido. Cuando el estado lo permita, también podrás modificarlo o cancelarlo.
+[02:55–03:25] En Mensajes tienes un chat privado con Tarraco Sea Food. Puedes enviarnos preguntas y responder a nuestros avisos. Las conversaciones son privadas: otros clientes no pueden verlas.
+[03:25–03:45] Cuando recibas un mensaje nuevo, aparecerá un aviso destacado. Pulsa Ver mensaje para abrir directamente la conversación.
+[03:45–03:55] Gracias por confiar en Tarraco Sea Food. Estamos a tu disposición.
+
+NOTAS DE PRODUCCIÓN
+- Mostrar solo la interfaz de cliente, nunca el panel de administración.
+- Usar datos ficticios en las capturas, sin mostrar datos privados de clientes reales.
+- El guion es provisional: las marcas de tiempo son estimaciones, no la duración real del MP4.
+- Confirmar el funcionamiento real de cada función antes de grabarla.
