@@ -172,8 +172,8 @@ $('registrationForm').addEventListener('submit',async e=>{
    contact_name:$('regContact').value.trim(),contact_phone:$('regPhone').value.trim()
   }}});
   if(error)throw error;
-  out.textContent='Solicitud recibida. Revisa tu correo para confirmar la cuenta si se te solicita. Después podrás iniciar sesión.';
-  if(data?.session&&data?.user)await enter(data.user);
+  out.textContent='Solicitud recibida. Revisa tu correo si se solicita confirmación. Tu empresa quedará pendiente de autorización por TARRACO antes de poder hacer pedidos.';
+  if(data?.session&&data?.user)await db.auth.signOut();
  }catch(err){out.textContent='No se pudo completar el registro: '+(err?.message||String(err))}
  finally{b.disabled=false}
 });
