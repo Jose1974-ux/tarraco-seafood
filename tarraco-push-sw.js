@@ -9,6 +9,10 @@ const isId = value => typeof value === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4})
 const scope = new URL(self.registration.scope);
 const api = new URL(self.location.href).searchParams.get('api');
 let handling = Promise.resolve();
+const android = self.navigator?.userAgentData?.platform === 'Android' ||
+  /Android/i.test(self.navigator?.userAgent || '');
+
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
 
 function serial(event, task) {
   handling = handling.catch(() => {}).then(task);
@@ -78,7 +82,9 @@ self.addEventListener('push', event => serial(event, async () => {
   const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
   const visible = windows.find(c => c.visibilityState === 'visible' && c.focused && c.url.startsWith(scope.href));
   const played = data.sound === true && visible ? await askForSound(visible).catch(() => false) : false;
-  const silent = data.sound !== true || played;
+  // Android can lock the screen after the page accepts the foreground sound.
+  // Keep the system alert enabled independently of the page on Android.
+  const silent = data.sound !== true || (!android && played);
   await self.registration.showNotification('TARRACO SEA FOOD · ' + titles[data.type], {
     body: data.type === 'prueba' ? 'Toca este aviso para detener su recordatorio.' : 'Abre administración para consultar el aviso.',
     tag,

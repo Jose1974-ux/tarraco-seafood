@@ -12,17 +12,20 @@ window.createTarracoPush = (db, api) => {
 
   if (supported) navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type !== 'tarraco-push-sound' || !event.ports[0]) return;
-    const play = enabled && sound && !document.hidden && context?.state === 'running';
+    const play = enabled && sound && !document.hidden && document.hasFocus() && context?.state === 'running';
     if (play) {
       for (let index = 0; index < 3; index++) {
-        const start = context.currentTime + index * 0.24;
+        const start = context.currentTime + index * 0.34;
         const tone = context.createOscillator(), volume = context.createGain();
-        tone.frequency.value = 920;
-        volume.gain.setValueAtTime(0.09, start);
-        volume.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+        tone.type = 'triangle';
+        tone.frequency.value = 1050;
+        volume.gain.setValueAtTime(0.001, start);
+        volume.gain.exponentialRampToValueAtTime(0.78, start + 0.012);
+        volume.gain.setValueAtTime(0.78, start + 0.19);
+        volume.gain.exponentialRampToValueAtTime(0.001, start + 0.26);
         tone.connect(volume).connect(context.destination);
         tone.start(start);
-        tone.stop(start + 0.16);
+        tone.stop(start + 0.27);
       }
     }
     event.ports[0].postMessage(!!play);
