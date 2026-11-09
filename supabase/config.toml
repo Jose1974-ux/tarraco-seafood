@@ -6,3 +6,6 @@ enable_signup = false
 
 [functions.tarraco-registration]
 verify_jwt = false
+
+[functions.tarraco-push]
+verify_jwt = false
