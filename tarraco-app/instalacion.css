@@ -39,3 +39,7 @@
 
 .tarraco-install-button[hidden]{display:none}
 #tarraco-install-actions > .tarraco-install-button[hidden] + .tarraco-steps{margin-top:0}
+
+.tarraco-compose-link{width:auto}
+.tarraco-compose-link[aria-disabled="true"]{opacity:.55;cursor:default}
+.tarraco-invite-panel [data-invite-send][hidden]{display:none}

@@ -32,9 +32,9 @@
         <p class="muted">Elige una o varias empresas, o envía la invitación a todas las empresas autorizadas y activas que tengan correo.</p>
         <div class="tarraco-recipients" data-invite-recipients role="group" aria-label="Clientes que pueden recibir la aplicación">Cargando empresas…</div>
         <div class="row">
-          <button type="button" data-invite-send="selected" disabled>Enviar a seleccionados</button>
-          <button type="button" class="secondary" data-invite-send="all" disabled>Enviar a todos</button>
-          <button type="button" class="secondary" data-invite-compose disabled>Abrir en mi correo</button>
+          <button type="button" data-invite-send="selected" hidden disabled>Enviar a seleccionados</button>
+          <button type="button" class="secondary" data-invite-send="all" hidden disabled>Enviar a todos</button>
+          <a class="tarraco-install-button tarraco-compose-link" data-invite-compose target="_blank" rel="noopener noreferrer" aria-disabled="true">Abrir borrador en Gmail</a>
         </div>
         <p data-invite-progress role="status"></p>
       </section>
@@ -62,9 +62,27 @@
     }
 
     function syncButtons() {
-      find('[data-invite-compose]').disabled = !selected().length;
-      find('[data-invite-send="selected"]').disabled = !configured || sending || !selected().length;
-      find('[data-invite-send="all"]').disabled = !configured || sending || !companies.length;
+      const ids = new Set(selected());
+      const addresses = companies.filter(company => ids.has(company.id)).map(company => company.email.trim());
+      const compose = find('[data-invite-compose]');
+      const url = new URL('https://mail.google.com/mail/');
+      url.search = new URLSearchParams({
+        view: 'cm',
+        fs: '1',
+        su: 'Instala TARRACO y accede a tus pedidos',
+        body: 'Hola,\r\n\r\nInstala el portal de pedidos de TARRACO desde este enlace y sigue los pasos de tu dispositivo.\r\n' + installUrl + '\r\n\r\nUn saludo,\r\nTARRACO SEA FOOD 2002 SL',
+        [addresses.length === 1 ? 'to' : 'bcc']: addresses.join(','),
+      });
+      const canCompose = addresses.length > 0 && url.href.length <= 2000;
+      if (canCompose) compose.href = url.href;
+      else compose.removeAttribute('href');
+      compose.setAttribute('aria-disabled', String(!canCompose));
+      if (addresses.length && !canCompose) progress.textContent = 'Selecciona menos empresas para abrir el borrador.';
+      for (const mode of ['selected', 'all']) {
+        const button = find('[data-invite-send="' + mode + '"]');
+        button.hidden = !configured;
+        button.disabled = !configured || sending || (mode === 'selected' ? !ids.size : !companies.length);
+      }
     }
 
     async function invoke(body) {
@@ -118,7 +136,7 @@
         const { configured: ready, rows } = await invoke({ action: 'status', offset });
         if (request !== historyRequest) return;
         configured = ready;
-        config.textContent = ready ? 'Remitente disponible.' : 'Envío automático sin configurar. Selecciona los destinatarios y pulsa «Abrir en mi correo».';
+        config.textContent = ready ? 'Remitente disponible.' : 'Envío automático sin configurar. Selecciona los destinatarios y pulsa «Abrir borrador en Gmail».';
         find('[data-invite-page="previous"]').disabled = offset === 0;
         find('[data-invite-page="next"]').disabled = rows.length < pageSize;
         if (!rows.length) {
@@ -139,7 +157,7 @@
       } catch (error) {
         if (request !== historyRequest) return;
         configured = false;
-        config.textContent = error.message + ' Puedes usar «Abrir en mi correo».';
+        config.textContent = error.message + ' Puedes usar «Abrir borrador en Gmail».';
         history.textContent = 'Historial temporalmente no disponible.';
       } finally {
         syncButtons();
@@ -170,22 +188,10 @@
       }
     }
 
-    find('[data-invite-compose]').addEventListener('click', () => {
-      const ids = new Set(selected());
-      const addresses = companies.filter(company => ids.has(company.id))
-        .map(company => encodeURIComponent(company.email.trim()));
-      if (!addresses.length) return;
-      const subject = encodeURIComponent('Instala TARRACO y accede a tus pedidos');
-      const body = encodeURIComponent('Hola,\r\n\r\nInstala el portal de pedidos de TARRACO desde este enlace y sigue los pasos de tu dispositivo.\r\n' + installUrl + '\r\n\r\nUn saludo,\r\nTARRACO SEA FOOD 2002 SL');
-      const to = addresses.length === 1 ? addresses[0] : '';
-      const bcc = addresses.length > 1 ? 'bcc=' + addresses.join(',') + '&' : '';
-      const draft = 'mailto:' + to + '?' + bcc + 'subject=' + subject + '&body=' + body;
-      if (draft.length > 2000) {
-        progress.textContent = 'Selecciona menos empresas para abrir el borrador en tu correo.';
-        return;
+    find('[data-invite-compose]').addEventListener('click', event => {
+      if (event.currentTarget.hasAttribute('href')) {
+        progress.textContent = 'Revisa el borrador y pulsa Enviar en Gmail.';
       }
-      progress.textContent = 'Revisa el borrador y pulsa Enviar en tu aplicación de correo.';
-      window.location.href = draft;
     });
 
     recipients.addEventListener('change', syncButtons);
