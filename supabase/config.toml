@@ -1,2 +1,5 @@
 [functions.tarraco-telegram]
 verify_jwt = false
+
+[functions.tarraco-push]
+verify_jwt = false
