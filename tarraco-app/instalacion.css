@@ -1,0 +1,38 @@
+.tarraco-install-page{margin:0;min-height:100vh;padding:24px 16px;display:grid;place-items:center;box-sizing:border-box;background:#eef4f4;color:#102c3a;font:16px/1.5 system-ui,sans-serif}
+.tarraco-install-card{box-sizing:border-box;width:min(100%,540px);background:#fff;border:1px solid #d6e4e5;border-radius:24px;padding:clamp(20px,6vw,40px);box-shadow:0 18px 55px #102c3a12;text-align:center}
+.tarraco-install-logo{display:block;margin:0 auto 12px;border:1px solid #e5eeee;border-radius:22px}
+.tarraco-kicker{color:#246859;font-size:.81rem;font-weight:800;letter-spacing:.075em;margin:0 0 8px}
+.tarraco-install-card h1{font-size:clamp(1.8rem,5vw,2.5rem);line-height:1.12;margin:0}
+.tarraco-install-card p{margin:12px 0}
+.tarraco-install-card .tarraco-kicker{margin:0 0 8px}
+.tarraco-install-button{box-sizing:border-box;display:flex;justify-content:center;align-items:center;width:100%;min-height:52px;padding:13px 16px;border:0;border-radius:12px;background:#17634f;color:white;font:800 1rem/1.35 system-ui,sans-serif;text-decoration:none;cursor:pointer}
+.tarraco-install-button:focus-visible,.tarraco-open-portal:focus-visible,#tarraco-copy-browser:focus-visible{outline:3px solid #bd5b12;outline-offset:3px}
+.tarraco-login-install{margin:0 0 18px;padding:12px;background:#edf6f3;border-radius:12px;text-align:center}
+.tarraco-login-install p{margin:7px 0 0;color:#405b60;font-size:.83rem}
+.tarraco-steps{text-align:left;margin:16px 0 0;padding:14px 16px;background:#eff6f4;border-radius:14px}
+.tarraco-steps h2{font-size:1rem;margin:0}
+.tarraco-steps ol{list-style:none;padding:0;margin:9px 0 0;counter-reset:tarraco-step}
+.tarraco-steps li{display:flex;align-items:baseline;gap:9px;margin:8px 0}
+.tarraco-steps li::before{counter-increment:tarraco-step;content:counter(tarraco-step);display:grid;place-items:center;flex:0 0 25px;height:25px;background:#d6ebe3;border-radius:50%;color:#164b3c;font-weight:800;font-size:.85rem}
+#tarraco-copy-browser{margin-top:8px;padding:9px 12px;border:1px solid #17634f;border-radius:8px;background:white;color:#124e40;font:inherit;cursor:pointer}
+.tarraco-open-portal{color:#11584e;display:inline-block;font-weight:750;margin-top:12px}
+#tarraco-install-status:empty{display:none}
+.tarraco-invite-panel{display:grid;gap:14px}
+.tarraco-invite-panel h3{margin:0 0 8px}
+.tarraco-invite-panel .tarraco-invite-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:15px;align-items:center}
+.tarraco-invite-panel .tarraco-invite-tools img{display:block;width:124px;height:124px;border:1px solid #dce5e8}
+.tarraco-invite-panel .tarraco-invite-tools a{color:#17634f;font-weight:750;padding:8px 0}
+.tarraco-invite-panel .tarraco-recipients{max-height:250px;overflow:auto;margin:10px 0 14px;border:1px solid #dce5e8;border-radius:10px;padding:5px 10px}
+.tarraco-invite-panel .tarraco-recipients label{display:flex;gap:9px;align-items:center;margin:0;padding:9px 0;border-bottom:1px solid #dce5e8;font-size:14px;color:inherit}
+.tarraco-invite-panel .tarraco-recipients label:last-child{border:0}
+.tarraco-invite-panel .tarraco-recipients input{width:auto;flex:none}
+.tarraco-invite-panel .tarraco-recipients small{display:block;color:#49626b;overflow-wrap:anywhere}
+.tarraco-invite-panel [data-invite-history] td{overflow-wrap:anywhere}
+@media(max-width:520px){.tarraco-invite-panel .tarraco-invite-tools{grid-template-columns:1fr}}
+@media(display-mode:standalone){.tarraco-login-install{display:none}}
+.tarraco-qr-print{display:none}
+@media print{
+  body.tarraco-printing>*{display:none!important}
+  body.tarraco-printing>.tarraco-qr-print{display:block!important;text-align:center;color:#000;background:white}
+  .tarraco-qr-print img{display:block;width:65mm;height:65mm;margin:10mm auto}
+}

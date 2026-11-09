@@ -4,5 +4,29 @@
     "deploymentEnabled": {
       "mejoras-noviembre-2026-pruebas": false
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/tarraco-push-sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/tarraco-app/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ]
 }

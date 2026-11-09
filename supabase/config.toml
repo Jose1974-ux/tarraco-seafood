@@ -1,11 +1,8 @@
 [functions.tarraco-telegram]
 verify_jwt = false
 
-[auth]
-enable_signup = false
-
-[functions.tarraco-registration]
+[functions.tarraco-push]
 verify_jwt = false
 
-[functions.tarraco-push]
+[functions.tarraco-install-invite]
 verify_jwt = false
