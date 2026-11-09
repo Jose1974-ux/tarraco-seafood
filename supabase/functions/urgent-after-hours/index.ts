@@ -1,0 +1,35 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+Deno.serve(async (req: Request) => {
+ const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, apikey, content-type, x-client-info","Access-Control-Allow-Methods":"POST, OPTIONS"};
+ const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{...cors,"Content-Type":"application/json"}});
+ if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors});
+ if(req.method!=="POST")return reply({error:"Método no permitido"},405);
+ const url=Deno.env.get("SUPABASE_URL"),anon=Deno.env.get("SUPABASE_ANON_KEY"),service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+ if(!url||!anon||!service)return reply({error:"Configuración incompleta"},503);
+ const authorization=req.headers.get("Authorization");
+ if(!authorization?.startsWith("Bearer "))return reply({error:"Inicia sesión"},401);
+ const authClient=createClient(url,anon,{global:{headers:{Authorization:authorization}},auth:{persistSession:false}});
+ const {data:auth,error:authError}=await authClient.auth.getUser();
+ if(authError||!auth.user)return reply({error:"Sesión no válida"},401);
+ const admin=createClient(url,service,{auth:{persistSession:false}});
+ const {data:profile}=await admin.from("profiles").select("role,company_id,display_name").eq("id",auth.user.id).maybeSingle();
+ if(profile?.role!=="customer"||!profile.company_id)return reply({error:"Solo clientes identificados"},403);
+ const {data:window,error:windowError}=await authClient.rpc("tarraco_order_window").single();
+ if(windowError)return reply({error:"No se pudo consultar el horario de pedidos"},503);
+ if(!window?.after_cutoff)return reply({error:"El horario de pedidos está abierto"},409);
+ let body:Record<string,unknown>;try{body=await req.json()}catch{return reply({error:"Solicitud inválida"},400)}
+ const detail=typeof body.details==="string"?body.details.trim():"";
+ if(detail.length<10||detail.length>1500)return reply({error:"Describe los productos, cantidades e instrucciones (10 a 1500 caracteres)"},400);
+ const {data:company}=await admin.from("companies").select("name").eq("id",profile.company_id).maybeSingle();
+ const {data:recent}=await admin.from("urgent_request_notifications").select("id").eq("user_id",auth.user.id).gte("created_at",new Date(Date.now()-60000).toISOString()).limit(1);
+ if(recent?.length)return reply({error:"Espera un minuto antes de enviar otro aviso urgente"},429);
+ const {data:record,error:insertError}=await admin.from("urgent_request_notifications").insert({user_id:auth.user.id,company_id:profile.company_id,details:detail}).select("id").single();
+ if(insertError||!record)return reply({error:"No se pudo registrar la solicitud"},500);
+ const stamp=new Intl.DateTimeFormat("es-ES",{timeZone:"Europe/Madrid",dateStyle:"short",timeStyle:"short"}).format(new Date());
+ const message="🚨 SOLICITUD URGENTE FUERA DE HORARIO\nTARRACO SEA FOOD 2002 SL\nEmpresa: "+(company?.name||"Sin nombre")+"\nUsuario: "+(profile.display_name||auth.user.email||auth.user.phone||auth.user.id)+"\nFecha y hora: "+stamp+"\n\nProductos e instrucciones:\n"+detail+"\n\n⚠️ Solicitud pendiente de confirmación. No es un pedido.";
+ const chat=Deno.env.get("TELEGRAM_CHAT_ID")||"496937588";
+ const bots=[["pedidos",Deno.env.get("TELEGRAM_BOT_TOKEN")],["importantes",Deno.env.get("TELEGRAM_IMPORTANT_BOT_TOKEN")]] as const;
+ const results=await Promise.all(bots.map(async ([name,token])=>{if(!token)return {name,ok:false};try{const res=await fetch("https://api.telegram.org/bot"+token+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:chat,text:message}),signal:AbortSignal.timeout(12000)});return {name,ok:res.ok}}catch{return {name,ok:false}}}));
+ await admin.from("urgent_request_notifications").update({sent_orders:!!results[0].ok,sent_important:!!results[1].ok}).eq("id",record.id);
+ return reply({ok:results.every(x=>x.ok),orders:results[0].ok,important:results[1].ok,request_id:record.id},results.every(x=>x.ok)?200:207);
+});

@@ -342,21 +342,18 @@ async function getOrderWindow(){
  if(error)throw error;
  return data;
 }
+const orderClosedMessage='Fuera de la hora límite. Ahora no puedes enviar pedidos. Volverán a abrir a las 06:00 (hora peninsular).';
 function renderOrderWindow(form){
  const field=form.elements.requested_date,notice=$('orderWindowNotice'),urgent=$('orderUrgentButton'),top=$('orderCutoffBanner');
- const limitEnabled=!!orderWindow?.cutoff_time;
- const afterCutoff=limitEnabled&&orderWindow.after_cutoff;
+ const closed=orderWindow?.after_cutoff===true;
  field.min=orderWindow?.earliest||madridDateFormatter.format(new Date());
- field.required=limitEnabled;
- if(limitEnabled){
-  notice.textContent='Primera fecha disponible: '+deliveryDate(orderWindow.earliest)+'. '+(afterCutoff
-   ?'Ha pasado la hora límite ('+orderWindow.cutoff_time.slice(0,5)+'). Puedes pedir para esa fecha o una posterior.'
-   :'Hora límite diaria: '+orderWindow.cutoff_time.slice(0,5)+' (hora peninsular).');
- }else if(orderWindow){notice.textContent='Puedes enviar pedidos a cualquier hora. Si quieres, indica una fecha de entrega.'}
- else{notice.textContent='Consultando fechas disponibles…'}
- urgent.classList.toggle('hidden',!afterCutoff);
- top.classList.toggle('hidden',!afterCutoff);
- if(afterCutoff)$('orderCutoffSummary').textContent='Fuera de la hora límite para las fechas más próximas. Puedes pedir para el '+deliveryDate(orderWindow.earliest)+' o más adelante.';
+ $('sendOrderButton').disabled=orderSubmitting||closed;
+ notice.textContent=closed?orderClosedMessage:orderWindow
+  ?'Puedes enviar tu pedido. Si quieres, indica una fecha de entrega.'
+  :'Consultando el horario de pedidos…';
+ urgent.classList.toggle('hidden',!closed);
+ top.classList.toggle('hidden',!closed);
+ if(closed)$('orderCutoffSummary').textContent=orderClosedMessage;
 }
 async function updateOrderWindow(){
  const form=$('placeOrder');
@@ -392,7 +389,7 @@ function showUrgentPopup(opener){
   <div class="urgent-dialog-card">
    <button type="button" class="secondary urgent-dialog-close" data-close-urgent aria-label="Cerrar solicitud urgente">×</button>
    <div class="urgent-dialog-content">
-    <div style="font-size:38px">🕒</div><h2 id="tarracoUrgentTitle" style="margin:9px 0;color:#183f51">Solicitud urgente fuera de horario</h2><p>Si necesitas una fecha anterior a la primera disponible, puedes solicitar una atención urgente.</p><p>Lamentamos las molestias. Para que podamos ayudarte, si necesitas algún producto con urgencia, puedes enviarnos una solicitud especial indicando qué necesitas y nuestro equipo la revisará lo antes posible.</p><p>Indica los productos, cantidades e instrucciones. Recibiremos tu aviso en nuestros dos canales de Telegram.</p><form id="tarracoUrgentForm" style="text-align:left"><label for="tarracoUrgentDetails">Productos, cantidades e instrucciones</label><textarea id="tarracoUrgentDetails" required minlength="10" maxlength="1500" rows="5" placeholder="Ejemplo: 2 cajas de gambas para mañana antes de las 9:00. Preparación..." style="width:100%"></textarea><button id="tarracoUrgentSend" type="submit" style="width:100%;margin-top:12px">🚨 Enviar solicitud urgente</button></form><p id="tarracoUrgentResult" aria-live="polite" style="font-size:13px"></p><button type="button" id="tarracoUrgentClose" data-close-urgent class="secondary" style="width:100%;margin-top:10px">Cerrar</button><p style="font-size:12px;color:#657b83">La solicitud no es un pedido confirmado. Gracias por confiar en TARRACO SEA FOOD 2002 SL.</p>
+    <div style="font-size:38px">🕒</div><h2 id="tarracoUrgentTitle" style="margin:9px 0;color:#183f51">Solicitud urgente fuera de horario</h2><p>Si necesitas hacer un pedido mientras el portal está cerrado, puedes solicitar atención urgente.</p><p>Lamentamos las molestias. Para que podamos ayudarte, si necesitas algún producto con urgencia, puedes enviarnos una solicitud especial indicando qué necesitas y nuestro equipo la revisará lo antes posible.</p><p>Indica los productos, cantidades e instrucciones. Recibiremos tu aviso en nuestros dos canales de Telegram.</p><form id="tarracoUrgentForm" style="text-align:left"><label for="tarracoUrgentDetails">Productos, cantidades e instrucciones</label><textarea id="tarracoUrgentDetails" required minlength="10" maxlength="1500" rows="5" placeholder="Ejemplo: 2 cajas de gambas para mañana antes de las 9:00. Preparación..." style="width:100%"></textarea><button id="tarracoUrgentSend" type="submit" style="width:100%;margin-top:12px">🚨 Enviar solicitud urgente</button></form><p id="tarracoUrgentResult" aria-live="polite" style="font-size:13px"></p><button type="button" id="tarracoUrgentClose" data-close-urgent class="secondary" style="width:100%;margin-top:10px">Cerrar</button><p style="font-size:12px;color:#657b83">La solicitud no es un pedido confirmado. Gracias por confiar en TARRACO SEA FOOD 2002 SL.</p>
    </div>
   </div>`;
  document.body.appendChild(shade);
@@ -431,33 +428,32 @@ async function loadPreparation(){const box=$('preparationLines');if(!box)return;
 function exportPreparation(){const rows=[['Artículo','Unidad','Cantidad total','Empresa','Cantidad empresa','Pedido','Preparación']];for(const g of window.preparationRows||[])for(const d of g.detail)rows.push([g.name,unitNames[g.unit]||g.unit,g.total,d.company,d.quantity,d.order,d.notes]);const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');const a=document.createElement('a');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.href=url;a.download='preparacion-tarraco'+(window.preparationSelectedDate?'-'+window.preparationSelectedDate:'')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportDeliverySheets(){const groups=new Map();for(const g of window.preparationRows||[])for(const d of g.detail){const company=d.company||'Empresa';if(!groups.has(company))groups.set(company,[]);groups.get(company).push([company,d.order,g.name,d.quantity,unitNames[g.unit]||g.unit,d.notes||''])}if(!groups.size)throw Error('No hay artículos para las hojas de reparto.');const rows=[['Empresa','Pedido','Artículo','Cantidad','Unidad','Preparación']];for(const company of [...groups.keys()].sort((a,b)=>a.localeCompare(b,'es'))){for(const line of groups.get(company))rows.push(line)}const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');const a=document.createElement('a');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.href=url;a.download='repartos-tarraco'+(window.preparationSelectedDate?'-'+window.preparationSelectedDate:'')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function adminCutoff(){return `<section class="card"><h3>Horarios límite de pedidos</h3>
- <p class="muted">Con el límite desactivado, los clientes pueden enviar pedidos las 24 horas. Si lo activas, la antelación se cuenta en días naturales. A partir de la hora límite, la primera fecha disponible se desplaza un día.</p>
+ <p class="muted">Con el límite activado, el envío se cierra cada día a la hora que indiques y vuelve a abrir a las 06:00 (hora peninsular). Si desactivas el límite, se pueden enviar pedidos las 24 horas.</p>
  <form id="cutoffForm"><fieldset disabled>
  <label><input type="checkbox" name="enabled" id="cutoffEnabled"> Activar límite de pedidos</label>
- <label for="cutoffTime">Hora límite (horario peninsular)</label><input type="time" name="cutoff_time" id="cutoffTime" required>
- <label for="cutoffLead">Días mínimos de antelación</label><input type="number" name="min_lead_days" id="cutoffLead" min="0" max="30" required>
+ <label for="cutoffTime">Hora de cierre (horario peninsular)</label><input type="time" name="cutoff_time" id="cutoffTime" required>
  <button>Guardar horarios</button></fieldset></form>
  <p id="cutoffInfo" class="muted" role="status">Cargando configuración…</p></section>`}
 async function loadCutoff(){
  const form=$('cutoffForm');
- const {data,error}=await db.from('order_cutoff_settings').select('enabled,cutoff_time,min_lead_days').eq('id',1).single();
+ const {data,error}=await db.from('order_cutoff_settings').select('enabled,cutoff_time').eq('id',1).single();
  if(form!==$('cutoffForm'))return;
  const info=$('cutoffInfo');
  if(error){info.textContent='No se ha podido cargar el horario. Vuelve a abrir esta sección.';return}
  form.elements.enabled.checked=data.enabled===true;
  form.elements.cutoff_time.value=data.cutoff_time.slice(0,5);
- form.elements.min_lead_days.value=data.min_lead_days;
  form.querySelector('fieldset').disabled=false;
- info.textContent=data.enabled?'Límite activado.':'Límite desactivado. Pedidos abiertos las 24 horas.';
+ info.textContent=data.enabled?'Límite activado. Cierre a las '+data.cutoff_time.slice(0,5)+' y reapertura a las 06:00.':'Límite desactivado. Pedidos abiertos las 24 horas.';
 }
 async function saveCutoff(form,fields){
  const controls=form.querySelector('fieldset');
  if(controls.disabled)return;
  const enabled=form.elements.enabled.checked;
+ if(enabled&&fields.cutoff_time==='06:00')throw Error('Elige una hora de cierre distinta de las 06:00, que es la hora de reapertura.');
  controls.disabled=true;
  try{
   const {error}=await db.from('order_cutoff_settings').update({
-   enabled,cutoff_time:fields.cutoff_time,min_lead_days:Number(fields.min_lead_days),updated_at:new Date().toISOString()
+   enabled,cutoff_time:fields.cutoff_time,updated_at:new Date().toISOString()
   }).eq('id',1).select('id').single();
   if(error)throw error;
   if(form===$('cutoffForm'))await loadCutoff();
@@ -931,7 +927,8 @@ async function submitCustomerOrder(form,fields){
   if(!id){
    orderWindow=await getOrderWindow();
    renderOrderWindow(form);
-   if((orderWindow.cutoff_time&&!requestedDate)||(requestedDate&&requestedDate<orderWindow.earliest)){
+   if(orderWindow.after_cutoff)throw Error(orderClosedMessage);
+   if(requestedDate&&requestedDate<orderWindow.earliest){
     throw Error('Elige una fecha desde el '+deliveryDate(orderWindow.earliest)+'.');
    }
    const items=Object.entries(cart).filter(([,quantity])=>Number(quantity)>0);
@@ -954,6 +951,13 @@ async function submitCustomerOrder(form,fields){
    });
    orderAttemptId ||= crypto.randomUUID();
    const {data,error}=await db.rpc('tarraco_place_order',{p_id:orderAttemptId,p_fulfilment:fields.fulfilment,p_date:requestedDate,p_notes:fields.customer_notes||null,p_items:lines});
+   if(error?.code==='PT423'){
+    if(form===$('placeOrder')){
+     orderWindow={...orderWindow,after_cutoff:true};
+     renderOrderWindow(form);
+    }
+    throw Error(orderClosedMessage);
+   }
    if(error?.code==='PT409'){
     const latest=await loadCustomerCatalog(company);
     if(user?.id!==currentUser||profile?.company_id!==company||form!==$('placeOrder'))return;
@@ -978,7 +982,7 @@ async function submitCustomerOrder(form,fields){
  }finally{
   orderSubmitting=false;
   if(catalogRefreshQueued){catalogRefreshQueued=false;scheduleCatalogRefresh();}
-  button.disabled=false;
+  button.disabled=orderWindow?.after_cutoff===true;
   button.textContent='Enviar pedido';
  }
 }
@@ -987,7 +991,7 @@ $('panel').addEventListener('invalid',e=>{
   showOrderFormMessage(orderWindow?.earliest?'Selecciona una fecha desde el '+deliveryDate(orderWindow.earliest)+'.':'Selecciona la fecha en la que necesitas el pedido.');
  }
 },true);
-setInterval(updateOrderWindow,60000);
+setInterval(()=>{if(!document.hidden)updateOrderWindow()},15000);
 
 boot().catch(e=>{$('status').textContent='No se pudo iniciar la conexión';msg(e.message,'error');console.error(e)});
 </script></body></html>
