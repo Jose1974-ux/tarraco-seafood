@@ -1,4 +1,4 @@
--- Registro voluntario de empresas. Aplicar tras revisión en Supabase.
+-- Registro inicial de empresas. Para instalaciones nuevas, aplicar después la migración de notificaciones y pedidos.
 -- No modifica las contraseñas ni los perfiles existentes.
 create or replace function public.tarraco_register_company()
 returns trigger language plpgsql security definer set search_path = ''
@@ -19,7 +19,7 @@ begin
     raise exception 'Datos de registro incompletos';
   end if;
   insert into public.companies(name,contact_name,email,phone,active)
-  values (company_name,contact_name,new.email,contact_phone,true)
+  values (company_name,contact_name,new.email,contact_phone,false)
   returning id into new_company_id;
   insert into public.profiles(id,role,company_id,display_name)
   values(new.id,'customer',new_company_id,contact_name);
