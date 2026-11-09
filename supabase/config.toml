@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.tarraco-push]
 verify_jwt = false
+
+[functions.tarraco-install-invite]
+verify_jwt = false

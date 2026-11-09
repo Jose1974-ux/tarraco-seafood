@@ -13,6 +13,18 @@ const android = self.navigator?.userAgentData?.platform === 'Android' ||
   /Android/i.test(self.navigator?.userAgent || '');
 
 self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+
+// Orders and private responses always come from the network, including when
+// the portal is launched from its icon. Never cache authenticated data here.
+self.addEventListener('fetch', event => {
+  if (event.request.mode !== 'navigate' || !event.request.url.startsWith(scope.href)) return;
+  event.respondWith(fetch(event.request).catch(() => new Response(
+    '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>TARRACO</title><h1>Sin conexión</h1><p>Conéctate a Internet y vuelve a abrir TARRACO para acceder a tus pedidos.</p></html>',
+    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+  )));
+});
+
 
 function serial(event, task) {
   handling = handling.catch(() => {}).then(task);

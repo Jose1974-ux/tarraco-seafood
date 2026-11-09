@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es-ES">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102c3a">
+  <title>Instalar TARRACO · Portal de pedidos</title>
+  <link rel="manifest" href="./tarraco-app/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./tarraco-app/apple-touch-icon.png">
+  <link rel="stylesheet" href="./tarraco-app/instalacion.css">
+  <script src="./tarraco-app/instalacion.js"></script>
+</head>
+<body class="tarraco-install-page">
+  <main class="tarraco-install-card">
+    <img class="tarraco-install-logo" src="./tarraco-app/icono-192.png" width="90" height="90" alt="">
+    <p class="tarraco-kicker">TARRACO SEA FOOD 2002 SL</p>
+    <h1>Tu portal de pedidos, siempre a mano</h1>
+    <p>Instala TARRACO y entra a tus pedidos desde el icono de tu dispositivo.</p>
+    <div id="tarraco-install-actions" hidden>
+      <button type="button" class="tarraco-install-button" data-tarraco-install aria-controls="tarraco-steps">INSTALAR TARRACO</button>
+      <section id="tarraco-steps" class="tarraco-steps" tabindex="-1" aria-labelledby="tarraco-device">
+        <h2 id="tarraco-device"></h2>
+        <p id="tarraco-browser-hint" hidden></p>
+        <ol id="tarraco-instructions"></ol>
+        <button type="button" id="tarraco-copy-browser" hidden>Copiar enlace</button>
+      </section>
+    </div>
+    <p id="tarraco-install-status" role="status"></p>
+    <noscript><p>Para ver los pasos de instalación, activa JavaScript en tu navegador.</p></noscript>
+    <a class="tarraco-open-portal" href="./">Abrir el portal de pedidos →</a>
+  </main>
+</body>
+</html>
