@@ -1,2 +1,8 @@
 [functions.tarraco-telegram]
 verify_jwt = false
+
+[auth]
+enable_signup = false
+
+[functions.tarraco-registration]
+verify_jwt = false

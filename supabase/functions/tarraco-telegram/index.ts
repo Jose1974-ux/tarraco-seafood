@@ -35,11 +35,11 @@ function registrationDetails(company: RegistrationCompany) {
     "\nTeléfono: " + (company.phone ?? "—") + "\nCorreo: " + (company.email ?? "—");
 }
 
-function markRegistrationAuthorized(chat: number, message: number, company: RegistrationCompany) {
+function markRegistrationDecision(chat: number, message: number, company: RegistrationCompany, authorized: boolean) {
   return telegram("editMessageText", {
     chat_id: chat,
     message_id: message,
-    text: "✅ Cuenta autorizada\n\n" + registrationDetails(company),
+    text: (authorized ? "✅ Cuenta autorizada" : "❌ Solicitud rechazada") + "\n\n" + registrationDetails(company),
     reply_markup: { inline_keyboard: [[{ text: "Ver empresas en Tarraco", url: portal + "#solicitudes" }]] },
   });
 }
@@ -92,7 +92,10 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
             text: "🔔 Nueva solicitud de registro · Pendiente de autorización\n\n" + registrationDetails(company),
             protect_content: true,
             reply_markup: { inline_keyboard: approvalEnabled
-              ? [[{ text: "Autorizar registro", callback_data: "alta:" + job.entity_id }], ...buttons]
+              ? [[
+                { text: "Autorizar registro", callback_data: "alta:" + job.entity_id },
+                { text: "Rechazar registro", callback_data: "rechazar:" + job.entity_id },
+              ], ...buttons]
               : buttons },
           });
           registrationMessage = { telegram_chat_id: chat.id, telegram_message_id: notice.message_id };
@@ -107,7 +110,7 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
           const { data: company, error } = await admin.from("companies")
             .select("name,contact_name,phone,email,active").eq("id", job.entity_id).maybeSingle();
           if (error) throw error;
-          if (company?.active) await markRegistrationAuthorized(chat.id, notice.telegram_message_id, company);
+          if (company?.active) await markRegistrationDecision(chat.id, notice.telegram_message_id, company, true);
         }
       } else {
         const { data: message, error } = await admin.from("company_chat_messages")
@@ -139,70 +142,13 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
   return { sent, approvalEnabled };
 }
 
-async function sendApprovalEmails() {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) return { configured: false, sent: 0 };
-  const { data: config, error: configError } = await admin.from("notification_settings")
-    .select("sender_email").eq("id", 1).maybeSingle();
-  if (configError) throw configError;
-  const from = config?.sender_email?.trim();
-  if (!from) return { configured: false, sent: 0 };
-
-  const { data: jobs, error } = await admin.rpc("tarraco_claim_registration_approval_email");
-  if (error) throw error;
-  const results = await Promise.allSettled(jobs.map(async (job: {
-    company_id: string;
-    recipient: string;
-    attempts: number;
-  }) => {
-    let lastError: string | null = null;
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + apiKey,
-          "Content-Type": "application/json",
-          "Idempotency-Key": "tarraco-registration-approval/" + job.company_id,
-        },
-        body: JSON.stringify({
-          from,
-          to: [job.recipient],
-          subject: "Cuenta autorizada · TARRACO SEA FOOD 2002 SL",
-          text: [
-            "Hola,",
-            "TARRACO SEA FOOD 2002 SL ha autorizado el acceso de tu empresa al portal de pedidos.",
-            "Si todavía tienes pendiente verificar tu correo electrónico, abre primero el mensaje de verificación que recibiste al registrarte.",
-            "Una vez verificado el correo, ya puedes iniciar sesión con el correo y la contraseña que usaste al registrarte: " + portal,
-            "Un saludo,\nTARRACO SEA FOOD 2002 SL",
-          ].join("\n\n"),
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!response.ok) lastError = "Proveedor de correo: " + response.status;
-    } catch {
-      lastError = "No se pudo conectar con el proveedor de correo";
-    }
-    const patch = lastError
-      ? { last_error: lastError, next_attempt_at: nextAttempt(job.attempts) }
-      : { last_error: null, sent_at: new Date().toISOString() };
-    const { error: saveError } = await admin.from("tarraco_registration_approval_email").update(patch)
-      .eq("company_id", job.company_id).eq("attempts", job.attempts);
-    if (saveError) throw saveError;
-    return lastError === null;
-  }));
-  if (results.some((result) => result.status === "rejected")) {
-    console.error("No se pudo registrar el resultado de uno o más correos de autorización");
-  }
-  return { configured: true, sent: results.filter((result) => result.status === "fulfilled" && result.value).length };
-}
-
-async function approve(callback: {
+async function decideRegistration(callback: {
   id: string;
   data?: string;
   from: { id: number };
   message?: { message_id: number; chat: { id: number } };
 }) {
-  const match = callback.data?.match(/^alta:([0-9a-f-]{36})$/);
+  const match = callback.data?.match(/^(alta|rechazar):([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/);
   if (!match || !callback.message) return;
   const answer = (text: string) => telegram("answerCallbackQuery", { callback_query_id: callback.id, text, show_alert: true });
   const chat = await destination();
@@ -215,19 +161,24 @@ async function approve(callback: {
       (await telegram("getChatMember", { chat_id: chat.id, user_id: callback.from.id })).status,
     );
   if (!allowed) {
-    await answer("Solo administración puede autorizar registros.");
+    await answer("Solo administración puede resolver solicitudes.");
     return;
   }
-  const { data, error } = await admin.from("companies").update({ active: true })
-    .eq("id", match[1]).eq("registration_pending", true).eq("active", false).select(registrationFields).maybeSingle();
+  const { data: decision, error } = await admin.rpc("tarraco_decide_registration", {
+    p_company: match[2],
+    p_approve: match[1] === "alta",
+  });
   if (error) throw error;
-  const { data: company, error: lookupError } = data ? { data, error: null } : await admin.from("companies")
-    .select(registrationFields).eq("id", match[1]).eq("active", true).maybeSingle();
-  if (lookupError) throw lookupError;
-  await answer(company ? "Cuenta autorizada en Tarraco Pedidos." : "La solicitud ya está resuelta o se ha retirado.");
-  if (company) {
-    await markRegistrationAuthorized(chat.id, callback.message.message_id, company).catch(() => {});
+  if (decision !== "authorized" && decision !== "rejected") {
+    await answer("La solicitud ya no está disponible.");
+    return;
   }
+  const { data: company, error: lookupError } = await admin.from("companies")
+    .select(registrationFields).eq("id", match[2]).maybeSingle();
+  if (lookupError) throw lookupError;
+  const authorized = decision === "authorized";
+  await answer(authorized ? "Cuenta autorizada en Tarraco Pedidos." : "Solicitud rechazada.").catch(() => {});
+  if (company) await markRegistrationDecision(chat.id, callback.message.message_id, company, authorized);
 }
 
 Deno.serve(async (req) => {
@@ -240,24 +191,14 @@ Deno.serve(async (req) => {
     const { data: authorized, error } = await admin.rpc("tarraco_telegram_worker_authorized", { p_secret: secret });
     if (error || !authorized) return new Response(null, { status: 401 });
     const payload = await req.json();
-    if (!token && (webhookSecret || payload.diagnostic === true)) {
+    if (!token) {
       return Response.json({ error: "Falta el bot de avisos urgentes" }, { status: 503 });
     }
     if (webhookSecret) {
-      if (payload.callback_query) await approve(payload.callback_query);
+      if (payload.callback_query) await decideRegistration(payload.callback_query);
       return Response.json({ ok: true });
     }
-    if (payload.diagnostic === true) return Response.json(await sendAlerts(secret, true));
-    const [email, telegram] = await Promise.allSettled([
-      sendApprovalEmails(),
-      token ? sendAlerts(secret, false) : Promise.reject(new Error("Falta el bot de avisos urgentes")),
-    ]);
-    if (email.status === "rejected") console.error("No se pudo procesar la cola de correos de autorización");
-    if (telegram.status === "rejected") throw telegram.reason;
-    return Response.json({
-      ...telegram.value,
-      approvalEmail: email.status === "fulfilled" ? email.value : { error: "No se pudo procesar el correo" },
-    });
+    return Response.json(await sendAlerts(secret, payload.diagnostic === true));
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Error en Telegram");
     return Response.json({ error: "No se pudo procesar el aviso de Telegram" }, { status: 502 });
