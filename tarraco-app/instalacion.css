@@ -36,3 +36,6 @@
   body.tarraco-printing>.tarraco-qr-print{display:block!important;text-align:center;color:#000;background:white}
   .tarraco-qr-print img{display:block;width:65mm;height:65mm;margin:10mm auto}
 }
+
+.tarraco-install-button[hidden]{display:none}
+#tarraco-install-actions > .tarraco-install-button[hidden] + .tarraco-steps{margin-top:0}

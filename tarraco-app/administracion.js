@@ -34,6 +34,7 @@
         <div class="row">
           <button type="button" data-invite-send="selected" disabled>Enviar a seleccionados</button>
           <button type="button" class="secondary" data-invite-send="all" disabled>Enviar a todos</button>
+          <button type="button" class="secondary" data-invite-compose disabled>Abrir en mi correo</button>
         </div>
         <p data-invite-progress role="status"></p>
       </section>
@@ -61,6 +62,7 @@
     }
 
     function syncButtons() {
+      find('[data-invite-compose]').disabled = !selected().length;
       find('[data-invite-send="selected"]').disabled = !configured || sending || !selected().length;
       find('[data-invite-send="all"]').disabled = !configured || sending || !companies.length;
     }
@@ -116,7 +118,7 @@
         const { configured: ready, rows } = await invoke({ action: 'status', offset });
         if (request !== historyRequest) return;
         configured = ready;
-        config.textContent = ready ? 'Remitente disponible.' : 'Correo sin configurar. Puedes copiar el enlace o compartir el QR.';
+        config.textContent = ready ? 'Remitente disponible.' : 'Envío automático sin configurar. Selecciona los destinatarios y pulsa «Abrir en mi correo».';
         find('[data-invite-page="previous"]').disabled = offset === 0;
         find('[data-invite-page="next"]').disabled = rows.length < pageSize;
         if (!rows.length) {
@@ -137,7 +139,7 @@
       } catch (error) {
         if (request !== historyRequest) return;
         configured = false;
-        config.textContent = error.message;
+        config.textContent = error.message + ' Puedes usar «Abrir en mi correo».';
         history.textContent = 'Historial temporalmente no disponible.';
       } finally {
         syncButtons();
@@ -167,6 +169,24 @@
         refreshMountedHistory?.();
       }
     }
+
+    find('[data-invite-compose]').addEventListener('click', () => {
+      const ids = new Set(selected());
+      const addresses = companies.filter(company => ids.has(company.id))
+        .map(company => encodeURIComponent(company.email.trim()));
+      if (!addresses.length) return;
+      const subject = encodeURIComponent('Instala TARRACO y accede a tus pedidos');
+      const body = encodeURIComponent('Hola,\r\n\r\nInstala el portal de pedidos de TARRACO desde este enlace y sigue los pasos de tu dispositivo.\r\n' + installUrl + '\r\n\r\nUn saludo,\r\nTARRACO SEA FOOD 2002 SL');
+      const to = addresses.length === 1 ? addresses[0] : '';
+      const bcc = addresses.length > 1 ? 'bcc=' + addresses.join(',') + '&' : '';
+      const draft = 'mailto:' + to + '?' + bcc + 'subject=' + subject + '&body=' + body;
+      if (draft.length > 2000) {
+        progress.textContent = 'Selecciona menos empresas para abrir el borrador en tu correo.';
+        return;
+      }
+      progress.textContent = 'Revisa el borrador y pulsa Enviar en tu aplicación de correo.';
+      window.location.href = draft;
+    });
 
     recipients.addEventListener('change', syncButtons);
     find('[data-invite-send="selected"]').addEventListener('click', () => send(selected()));

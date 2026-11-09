@@ -53,6 +53,9 @@
     if (banner) banner.hidden = installed;
     if (!actions) return;
     actions.hidden = installed;
+    const installButton = actions.querySelector('[data-tarraco-install]');
+    const current = device();
+    installButton.hidden = !prompt && (current === 'iphone' || current === 'ipad');
     document.getElementById('tarraco-install-status').textContent = installed
       ? 'TARRACO ya está instalada. Puedes abrirla desde su icono.' : '';
     document.getElementById('tarraco-steps').hidden = !!prompt;
@@ -70,7 +73,7 @@
     let instructions;
     if (appleMobile) {
       instructions = [
-        'En Safari, toca Compartir (↑). Puede estar dentro del menú de la página.',
+        'En Safari, toca Compartir (□↑). Si no lo ves, abre el menú de la página.',
         'Elige «Añadir a pantalla de inicio».',
         'Si aparece «Abrir como app web», actívalo y toca «Añadir».',
       ];
@@ -85,7 +88,7 @@
     hint.hidden = !embedded && !appleMobile;
     hint.textContent = embedded
       ? 'Abre este enlace en ' + (appleMobile ? 'Safari' : 'Chrome') + ' desde el menú del navegador integrado, o copia el enlace.'
-      : 'Si has abierto el enlace dentro del correo o de otra aplicación, copia el enlace y ábrelo en Safari.';
+      : 'En iPhone y iPad, instala TARRACO desde el menú Compartir de Safari.';
     document.getElementById('tarraco-copy-browser').hidden = hint.hidden;
     document.getElementById('tarraco-device').textContent = 'Instalación en ' + name;
     document.getElementById('tarraco-instructions').replaceChildren(...instructions.map(step => {
