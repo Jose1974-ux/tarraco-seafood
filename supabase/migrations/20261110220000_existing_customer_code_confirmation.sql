@@ -66,7 +66,6 @@ begin
  select * into company from public.companies where id=request.company_id for update;
  if not found or company.active or company.archived_at is not null or company.customer_code is null
   or exists(select 1 from public.profiles where company_id=company.id)
-  or exists(select 1 from public.orders where company_id=company.id)
  then return 'review'; end if;
  if p_code is null or tarraco_private.registration_code(p_code) is distinct from tarraco_private.registration_code(company.customer_code) then
   update tarraco_private.registration_requests set confirmation_attempts=confirmation_attempts+1 where user_id=request.user_id;
