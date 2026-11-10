@@ -139,16 +139,26 @@ main>header #logout{font-size:12px!important;line-height:1.2!important;padding:8
 <section id="login" class="card login-card" style="max-width:470px;margin:35px auto"><div class="tarraco-login-install"><a href="./instalar.html" class="tarraco-install-button" data-tarraco-install>INSTALAR TARRACO</a><p>Abre tus pedidos desde el icono de TARRACO.</p></div><h2>Acceso privado</h2><p class="muted">Accede con tu correo electrónico o móvil vinculado a tu cuenta y tu contraseña.</p><div id="registrationStatus" class="chat-notice hidden">
 <p id="registrationStatusMessage" role="status" aria-live="polite"></p>
 <button type="button" id="registrationLoginButton" class="secondary hidden">Ir a iniciar sesión</button>
+<form id="registrationCodeForm" class="hidden">
+<label for="registrationCode">Código de cliente TARRACO</label>
+<input id="registrationCode" maxlength="40" required autocomplete="off">
+<button type="submit" class="secondary">Enviar código</button>
+<p id="registrationCodeResult" class="muted" role="status"></p>
+</form>
 </div><form id="loginForm"><label>Correo electrónico o número de móvil</label><input id="email" name="username" type="text" inputmode="email" autocomplete="username" placeholder="correo@empresa.es o +34600111222" required><p class="muted" style="font-size:12px;margin:4px 0 10px">Para acceder con móvil, el número debe estar vinculado a tu usuario de acceso.</p><label>Contraseña</label><div style="display:flex;gap:8px;align-items:center"><input id="password" name="password" type="password" autocomplete="current-password" required><button type="button" class="secondary" id="togglePassword" aria-label="Mostrar contraseña" onclick="const p=document.getElementById('password');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'Ver':'Ocultar'" style="white-space:nowrap">Ver</button></div><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="rememberEmail" style="width:auto"> Recordar mi usuario</label><p class="muted" style="font-size:12px;margin:8px 0 0">Tu correo o móvil se recordará en este dispositivo. Para recordar también la contraseña, acepta la opción «Guardar contraseña» que te ofrezca tu navegador o gestor de contraseñas. TARRACO no guarda contraseñas en el almacenamiento local.</p><button type="submit" id="loginButton" style="margin-top:15px">Iniciar sesión</button></form><button type="button" class="ghost" id="showRegistration" style="width:100%;margin-top:12px">Registrarse como nuevo cliente</button>
 <form id="registrationForm" class="hidden" style="margin-top:18px;border-top:1px solid #dce5e8;padding-top:12px">
-<h3>Alta de nueva empresa</h3><p class="muted">Envía tus datos. TARRACO SEA FOOD revisará tu solicitud por Telegram y podrás consultar aquí su estado.</p>
-<label for="regCompany">Nombre de la empresa</label><input id="regCompany" minlength="2" maxlength="120" required>
-<label for="regContact">Persona de contacto</label><input id="regContact" minlength="2" maxlength="120" required>
-<label for="regPhone">Teléfono móvil</label><input id="regPhone" type="tel" minlength="7" maxlength="25" required>
-<label for="regEmail">Correo electrónico para iniciar sesión</label><input id="regEmail" type="email" autocomplete="email" required>
+<h3>Registra tu restaurante</h3><p class="muted">Buscaremos tu ficha y te avisaremos aquí cuando TARRACO autorice tu acceso.</p>
+<label for="regCompany">Nombre del restaurante</label><input id="regCompany" autocomplete="organization" minlength="2" maxlength="120" required>
+<label for="regTax">NIF/CIF</label><input id="regTax" autocapitalize="characters" minlength="6" maxlength="20" required>
+<label for="regPhone">Teléfono de contacto</label><input id="regPhone" type="tel" autocomplete="tel" minlength="7" maxlength="25" required>
+<label for="regEmail">Correo electrónico (tu usuario)</label><input id="regEmail" type="email" autocomplete="email" maxlength="254" required>
 <label for="regPassword">Contraseña nueva (mínimo 8 caracteres)</label><div style="display:flex;gap:8px;align-items:center"><input id="regPassword" type="password" minlength="8" autocomplete="new-password" required><button type="button" class="secondary" data-toggle-registration-password="regPassword" aria-label="Mostrar contraseña" aria-pressed="false" style="width:auto;flex:none;padding:10px" title="Mostrar contraseña">👁</button></div>
-<label for="regPasswordConfirm">Repite la contraseña</label><div style="display:flex;gap:8px;align-items:center"><input id="regPasswordConfirm" type="password" minlength="8" autocomplete="new-password" required><button type="button" class="secondary" data-toggle-registration-password="regPasswordConfirm" aria-label="Mostrar contraseña" aria-pressed="false" style="width:auto;flex:none;padding:10px" title="Mostrar contraseña">👁</button></div>
-<button type="submit" id="registerButton">Crear cuenta de empresa</button><button type="button" class="secondary" id="cancelRegistration">Volver al acceso</button>
+<details id="regExistingDetails" style="margin:12px 0">
+<summary>Ya tengo código de cliente (opcional)</summary>
+<label for="regCode">Código de cliente TARRACO</label><input id="regCode" maxlength="40" autocomplete="off">
+</details>
+<label style="display:flex;align-items:center;gap:8px;margin:12px 0"><input id="regNewCustomer" type="checkbox" style="width:auto"> Todavía no soy cliente de TARRACO</label>
+<div class="row"><button type="submit" id="registerButton">Enviar solicitud</button><button type="button" class="secondary" id="cancelRegistration">Volver al acceso</button></div>
 </form><p id="registrationResult" role="status" aria-live="polite" class="muted"></p></section>
 <section id="app" class="hidden"><div class="card"><div class="row"><div><h2 id="panelTitle">Panel</h2><div id="welcome" class="muted"></div></div><div class="row right"><span class="pill">Conectado a Supabase</span>
 <div id="portalClock" class="portal-clock hidden"><span>Hora peninsular</span><time id="portalClockTime"></time></div>
@@ -157,6 +167,7 @@ main>header #logout{font-size:12px!important;line-height:1.2!important;padding:8
 <footer>Los pedidos y tarifas se guardan en la base de datos. Esta aplicación no realiza cobros.</footer></main>
 <script src="./tarraco-push-admin.js?v=2"></script>
 <script src="./tarraco-app/administracion.js"></script>
+<script src="./tarraco-app/clientes.js"></script>
 <script src="./tarraco-app/catalogo.js"></script>
 <script src="./tarraco-app/listado-diario.js"></script>
 <script>
@@ -228,7 +239,7 @@ async function loginNow(){
   if(error?.code==='email_not_confirmed'){
    const state=await refreshRegistrationStatus();
    if(trackedLogin&&state==='authorized')({data,error}=await db.auth.signInWithPassword(credentials));
-   else if(trackedLogin&&(state==='pending'||state==='rejected')){
+   else if(trackedLogin&&(state==='pending'||state==='needs_code'||state==='review'||state==='rejected')){
     $('status').textContent='Conexión disponible';
     return;
    }
@@ -250,12 +261,14 @@ $('loginForm').addEventListener('submit',e=>{e.preventDefault();loginNow()});
 document.querySelectorAll('[data-toggle-registration-password]').forEach(button=>button.addEventListener('click',()=>{const field=$(button.dataset.toggleRegistrationPassword);const visible=field.type==='password';field.type=visible?'text':'password';button.setAttribute('aria-pressed',String(visible));button.setAttribute('aria-label',visible?'Ocultar contraseña':'Mostrar contraseña');button.title=visible?'Ocultar contraseña':'Mostrar contraseña';button.textContent=visible?'🙈':'👁';}));
 const registrationMessages={
  pending:'⏳ Solicitud recibida · Pendiente de autorización por TARRACO SEA FOOD.',
+ needs_code:'Tu solicitud sigue pendiente. Si ya eres cliente, añade tu código de TARRACO para ayudarnos a localizar tu ficha. Si no lo tienes, contacta con TARRACO.',
+ review:'Tu solicitud sigue pendiente de revisión. Contacta con TARRACO para confirmar los datos del restaurante.',
  authorized:'✓ Tu empresa ha sido autorizada. Ya puedes iniciar sesión con el correo y la contraseña del registro.',
  rejected:'Solicitud rechazada. Contacta con TARRACO SEA FOOD si necesitas más información.',
  unavailable:'La solicitud ya no está disponible. Contacta con TARRACO SEA FOOD.'
 };
 let registrationTracking=null,registrationEmail=null,registrationAttempt=null;
-let registrationState=null,registrationCheck=null;
+let registrationState=null,registrationCheck=null,registrationSubmittingCode=false;
 try{registrationTracking=localStorage.getItem('tarraco_registration_tracking')}catch(e){}
 function showRegistrationStatus(state){
  const message=registrationMessages[state];
@@ -265,10 +278,11 @@ function showRegistrationStatus(state){
  status.classList.remove('hidden');
  status.classList.toggle('authorized',state==='authorized');
  $('registrationLoginButton').classList.toggle('hidden',state!=='authorized');
+ $('registrationCodeForm').classList.toggle('hidden',state!=='needs_code');
  if(out.textContent!==message)out.textContent=message;
 }
 async function refreshRegistrationStatus(){
- if(!db||user||!registrationTracking||!$('registrationForm').classList.contains('hidden'))return null;
+ if(!db||user||!registrationTracking||registrationSubmittingCode||!$('registrationForm').classList.contains('hidden'))return null;
  const tracking=registrationTracking;
  if(registrationCheck?.tracking===tracking)return registrationCheck.promise;
  const check={tracking};
@@ -276,7 +290,7 @@ async function refreshRegistrationStatus(){
  check.promise=(async()=>{
   try{
    const {data,error}=await db.functions.invoke('tarraco-registration',{body:{action:'status',tracking}});
-   if(!error&&registrationTracking===tracking&&!user&&$('registrationForm').classList.contains('hidden')){
+   if(!error&&registrationCheck===check&&registrationTracking===tracking&&!user&&$('registrationForm').classList.contains('hidden')){
     showRegistrationStatus(data?.status);
     return data?.status;
    }
@@ -295,7 +309,7 @@ $('cancelRegistration').addEventListener('click',()=>{$('registrationForm').clas
 $('registrationForm').addEventListener('submit',async e=>{
  e.preventDefault();const b=$('registerButton'),out=$('registrationResult');
  const email=$('regEmail').value.trim().toLowerCase(),password=$('regPassword').value;
- if(password.length<8||password!==$('regPasswordConfirm').value){out.textContent='La contraseña debe tener al menos 8 caracteres y coincidir en ambos campos.';return}
+ if(Array.from(password).length<8){out.textContent='La contraseña debe tener al menos 8 caracteres.';return}
  b.disabled=true;out.className='muted';out.textContent='Enviando solicitud…';
  try{
   if(registrationAttempt?.email!==email){
@@ -305,7 +319,8 @@ $('registrationForm').addEventListener('submit',async e=>{
   const {tracking}=registrationAttempt;
   const {data,error}=await db.functions.invoke('tarraco-registration',{body:{
    action:'register',tracking,email,password,company:$('regCompany').value,
-   contact:$('regContact').value,phone:$('regPhone').value
+   tax:$('regTax').value,phone:$('regPhone').value,code:$('regCode').value,
+   newCustomer:$('regNewCustomer').checked
   }});
   if(error){
    const detail=await error.context?.json?.().catch(()=>null);
@@ -317,6 +332,7 @@ $('registrationForm').addEventListener('submit',async e=>{
   registrationAttempt=null;
   try{localStorage.setItem('tarraco_registration_tracking',tracking)}catch(e){}
   e.target.reset();
+  $('regExistingDetails').classList.remove('hidden');
   $('registrationForm').classList.add('hidden');
   $('loginForm').classList.remove('hidden');
   $('showRegistration').classList.remove('hidden');
@@ -327,8 +343,35 @@ $('registrationForm').addEventListener('submit',async e=>{
   out.textContent='No se ha confirmado el registro. '+(err?.message||'Vuelve a intentarlo.');
  }finally{b.disabled=false}
 });
+$('regNewCustomer').addEventListener('change',()=>{
+ const isNew=$('regNewCustomer').checked;
+ $('regExistingDetails').classList.toggle('hidden',isNew);
+ if(isNew)$('regCode').value='';
+});
+$('registrationCodeForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ if(!registrationTracking||registrationSubmittingCode)return;
+ const tracking=registrationTracking,button=e.target.querySelector('button'),out=$('registrationCodeResult');
+ registrationSubmittingCode=true;
+ registrationCheck=null;
+ button.disabled=true;
+ out.textContent='Comprobando el código…';
+ try{
+  const {data,error}=await db.functions.invoke('tarraco-registration',{body:{action:'code',tracking,code:$('registrationCode').value}});
+  if(error){
+   const detail=await error.context?.json?.().catch(()=>null);
+   throw Error(detail?.error||'No se pudo comprobar el código. Vuelve a intentarlo.');
+  }
+  if(registrationTracking!==tracking||user)return;
+  if(!registrationMessages[data?.status])throw Error('No se pudo comprobar el código.');
+  out.textContent=data.status==='needs_code'?'La solicitud sigue pendiente. Revisa el código o contacta con TARRACO.':'';
+  e.target.reset();
+  showRegistrationStatus(data.status);
+ }catch(error){out.textContent=error.message}
+ finally{button.disabled=false;registrationSubmittingCode=false}
+});
 setInterval(()=>{
- if(!document.hidden&&(!registrationState||registrationState==='pending'))refreshRegistrationStatus();
+ if(!document.hidden&&(!registrationState||registrationState==='pending'||registrationState==='needs_code'||registrationState==='review'))refreshRegistrationStatus();
 },5000);
 document.addEventListener('visibilitychange',()=>{
  if(!document.hidden)refreshRegistrationStatus();
@@ -341,6 +384,15 @@ function restoreDraft(){const key=draftKey();if(!key)return;try{const raw=localS
 async function clearCloudDraft(){if(!user||!profile?.company_id)return;const {error}=await db.from('customer_order_drafts').delete().eq('user_id',user.id);if(error)console.warn('No se pudo eliminar el borrador remoto',error)}
 function clearDraft(){const key=draftKey();if(key)try{localStorage.removeItem(key)}catch(e){}window.draftFields={};window.draftPaused=false}
 async function enter(u){user=u;try{const {data,error}=await db.from('profiles').select('role,display_name,company_id').eq('id',u.id).single();if(error)throw error;profile=data;if(data.role==='customer'){const {data:company,error:companyError}=await db.from('companies').select('active,registration_pending').eq('id',data.company_id).single();if(companyError)throw companyError;if(company.registration_pending)throw Error('Tu registro está pendiente de autorización por TARRACO SEA FOOD.');if(!company.active)throw Error('El acceso de tu empresa está desactivado. Contacta con TARRACO SEA FOOD.')}if(!['admin','customer','driver'].includes(data.role))throw Error('El perfil no tiene un rol autorizado');$('login').classList.add('hidden');$('app').classList.remove('hidden');$('logout').classList.remove('hidden');$('welcome').textContent=(data.display_name||u.email)+' · '+u.email;if(data.role==='customer'){restoreDraft();try{await restoreCloudDraft()}catch(e){console.warn('Borrador en otro dispositivo no disponible',e)}}applyPortalLink();preparePush();await refresh();openPushLink();startLiveUpdates();pollActivity().catch(e=>console.warn('Actualización de avisos',e))}catch(e){await db.auth.signOut();user=null;$('login').classList.remove('hidden');$('app').classList.add('hidden');msg(e.message.includes('pendiente de autorización')?'⏳ PENDIENTE DE AUTORIZACIÓN. Hemos recibido tu solicitud de registro. TARRACO SEA FOOD debe aprobar tu empresa antes de que puedas entrar y realizar pedidos.':('No se pudo validar el usuario: '+e.message),e.message.includes('pendiente de autorización')?'info':'error')}}
+async function listAdminCompanies(){
+ const rows=[];
+ for(let offset=0;;offset+=500){
+  const {data,error}=await db.from('companies').select('*').order('name').order('id').range(offset,offset+499);
+  if(error)throw error;
+  rows.push(...data);
+  if(data.length<500)return rows;
+ }
+}
 async function logout(){const v=$('tutorialVideo');if(v)v.pause();const d=$('tutorialDetails');if(d)d.open=false;if(profile?.role==='admin'&&adminPush)await adminPush.disable().catch(()=>{});await db.auth.signOut();catalogLocation='home';window.catalogQuery='';window.adminCatalogQuery='';window.adminCatalogReview=false;onlyFavorites=false;onlyOffers=false;onlyFrequent=false;if(catalogChannel)db.removeChannel(catalogChannel);catalogChannel=null;user=null;profile=null;$('panel').replaceChildren();unreadChats=new Map();activeChatCompany=null;pendingRegistrations=[];orderWindow=null;orderAttemptId=null;submittedOrder=null;activityRequest++;cart={};cartPrep={};cartUnits={};cartCatalogBaseline.clear();catalogInputDrafts.clear();$('app').classList.add('hidden');$('logout').classList.add('hidden');$('login').classList.remove('hidden');$('status').textContent='Sesión cerrada'}
 async function readOrderPages(makeQuery){
  const rows=[];
@@ -364,7 +416,7 @@ function loadOrderItems(orderIds){
   .select('order_id,product_id,product_name_snapshot,unit_snapshot,quantity,preparation_notes,product_code_snapshot,product_format_snapshot,unit_price_snapshot,price_unit_snapshot,products(product_code)')
   .in('order_id',orderIds).order('id'));
 }
-async function refresh({keepNotice=false}={}){if(!keepNotice)clearMsg();if(profile.role==='driver'){const {data,error}=await db.from('orders').select('id,company_id,created_at,requested_date,status,customer_notes,driver_delivery_comment,driver_delivered_at').eq('assigned_driver_id',user.id).order('requested_date',{ascending:true});if(error)throw error;orders=data||[];const {data:details,error:detailError}=await db.rpc('driver_order_details');if(detailError)throw detailError;window.driverDetails=new Map((details||[]).map(d=>[d.order_id,d]));$('stats').innerHTML=stat('Mis repartos',orders.length)+stat('Pendientes de entrega',orders.filter(o=>o.status!=='delivered').length);setNav([['driver_orders','Mis repartos']]);render();return}if(profile.role==='admin'){const [a,b,c]=await Promise.all([db.from('companies').select('*').order('name'),db.from('products').select('*').order('name'),loadOrders()]);for(const x of [a,b])if(x.error)throw x.error;companies=a.data||[];pendingRegistrations=companies.filter(x=>x.registration_pending);products=b.data||[];orders=c;$('stats').innerHTML=stat('Empresas',companies.length)+stat('Solicitudes pendientes',pendingRegistrations.length)+stat('Productos',products.length)+stat('Pedidos activos',orders.filter(x=>!x.archived_by_admin).length)+stat('Pendientes',orders.filter(x=>!x.archived_by_admin&&x.status==='pending').length);setNav([['orders','Pedidos'],['daily_orders','Listado diario de pedidos'],['archive','Archivados'],['preparation','Preparación'],['routes','Rutas de reparto'],['statistics','Estadísticas'],['customers','Empresas y accesos'],['registrations','Solicitudes de registro'],['drivers','Repartidores'],['products','Productos'],['visibility','Artículos por cliente'],['offers','Ofertas por empresa'],['prices','Precios por empresa'],['storage','Almacenamiento'],['notifications','Notificaciones importantes'],['invite_app','Enviar aplicación a clientes'],['chat','Mensajes'],['cutoff','Horarios límite']]);}else{const [fav,o,catalog]=await Promise.all([db.from('customer_favorites').select('product_id').eq('user_id',user.id),loadOrders(profile.company_id),loadCustomerCatalog(profile.company_id)]);if(fav.error)throw fav.error;favorites=(fav.data||[]).map(x=>x.product_id);applyCustomerCatalog(catalog);const items=[];
+async function refresh({keepNotice=false}={}){if(!keepNotice)clearMsg();if(profile.role==='driver'){const {data,error}=await db.from('orders').select('id,company_id,created_at,requested_date,status,customer_notes,driver_delivery_comment,driver_delivered_at').eq('assigned_driver_id',user.id).order('requested_date',{ascending:true});if(error)throw error;orders=data||[];const {data:details,error:detailError}=await db.rpc('driver_order_details');if(detailError)throw detailError;window.driverDetails=new Map((details||[]).map(d=>[d.order_id,d]));$('stats').innerHTML=stat('Mis repartos',orders.length)+stat('Pendientes de entrega',orders.filter(o=>o.status!=='delivered').length);setNav([['driver_orders','Mis repartos']]);render();return}if(profile.role==='admin'){const [a,b,c,d]=await Promise.all([listAdminCompanies(),db.from('products').select('*').order('name'),loadOrders(),db.rpc('tarraco_pending_registration_links')]);for(const x of [b,d])if(x.error)throw x.error;companies=a;pendingRegistrations=combineRegistrations(companies.filter(x=>x.registration_pending),d.data);products=b.data||[];orders=c;$('stats').innerHTML=stat('Empresas',companies.length)+stat('Solicitudes pendientes',pendingRegistrations.length)+stat('Productos',products.length)+stat('Pedidos activos',orders.filter(x=>!x.archived_by_admin).length)+stat('Pendientes',orders.filter(x=>!x.archived_by_admin&&x.status==='pending').length);setNav([['orders','Pedidos'],['daily_orders','Listado diario de pedidos'],['archive','Archivados'],['preparation','Preparación'],['routes','Rutas de reparto'],['statistics','Estadísticas'],['customers','CLIENTES'],['registrations','Solicitudes de registro'],['drivers','Repartidores'],['products','Productos'],['visibility','Artículos por cliente'],['offers','Ofertas por empresa'],['prices','Precios por empresa'],['storage','Almacenamiento'],['notifications','Notificaciones importantes'],['invite_app','Enviar aplicación a clientes'],['chat','Mensajes'],['cutoff','Horarios límite']]);}else{const [fav,o,catalog]=await Promise.all([db.from('customer_favorites').select('product_id').eq('user_id',user.id),loadOrders(profile.company_id),loadCustomerCatalog(profile.company_id)]);if(fav.error)throw fav.error;favorites=(fav.data||[]).map(x=>x.product_id);applyCustomerCatalog(catalog);const items=[];
  for(let offset=0;offset<o.length;offset+=50){
   items.push(...await loadOrderItems(o.slice(offset,offset+50).map(x=>x.id)));
  }
@@ -476,6 +528,12 @@ function render(){
  updatePortalClock();
  if(profile.role==='admin'&&tab==='daily_orders'&&$('dailyOrderReport'))return;
  if(profile.role==='admin'&&tab==='invite_app'&&$('panel').querySelector('[data-tarraco-invites]'))return;const tutorial=$('tutorialPedidos');if(tutorial)tutorial.classList.toggle('hidden',profile.role!=='customer'); $('panel').innerHTML=profile.role==='admin'?adminView():profile.role==='driver'?driverView():customerView();if(profile.role==='customer'&&tab==='catalog'){applyDraftFields();filterCatalog();scheduleCatalogRefresh();renderCatalogChanges();renderOrderWindow($('placeOrder'));updateOrderWindow();}if(profile.role==='admin'&&tab==='products')filterAdminCatalog();if(profile.role==='admin'&&tab==='visibility')loadVisibility();if(profile.role==='admin'&&tab==='prices')loadPrices($('priceCompany')?.value||'');if(profile.role==='admin'&&tab==='storage')loadStorageUsage();if(profile.role==='admin'&&tab==='invite_app')window.mountTarracoInvites($('panel'),db);if(profile.role==='admin'&&tab==='notifications'){loadNotificationSettings();renderPushControls();}if(profile.role==='admin'&&tab==='preparation')loadPreparation();if(profile.role==='admin'&&tab==='routes')loadRoutes();if(profile.role==='admin'&&tab==='statistics')loadProductStatistics();if(profile.role==='admin'&&tab==='orders'){loadDriverAssignments();loadAdminOrderItems();}if(profile.role==='admin'&&tab==='drivers')loadDrivers();if(profile.role==='admin'&&tab==='cutoff')loadCutoff();if(profile.role==='admin'&&tab==='offers')loadOfferTargets();if(tab==='chat')loadChat();updateActivityBadges();
+ if(profile.role==='admin'&&tab==='customers'){
+  window.mountTarracoCustomers($('panel').querySelector('[data-tarraco-customers]'), {
+   db, esc, companies, refresh, formatDate:date, orderLabels:labels,
+   pendingCompanyIds:new Set(pendingRegistrations.map(request=>request.candidate_company_id).filter(Boolean))
+  });
+ }
  if(profile.role==='admin'&&tab==='daily_orders'){
   const adminId=user.id;
   window.mountTarracoDailyOrders($('dailyOrderReport'),{
@@ -484,7 +542,7 @@ function render(){
  }
 }
 function driverView(){return '<section class="card"><h3>Mis repartos ('+orders.length+')</h3><p class="muted">Solo aparecen pedidos asignados a tu usuario. Confirma la entrega e indica cualquier incidencia.</p>'+ (orders.length?orders.map(o=>'<section class="card"><h4>Pedido '+esc(String(o.id).slice(0,8).toUpperCase())+'</h4><p><b>'+esc(window.driverDetails?.get(o.id)?.company_name||'Empresa')+'</b> · '+esc(window.driverDetails?.get(o.id)?.company_address||'')+'</p><div>'+((window.driverDetails?.get(o.id)?.items||[]).map(x=>'<p>'+esc(x.name)+' · '+esc(x.quantity)+' '+esc(x.unit)+(x.notes?' · '+esc(x.notes):'')+'</p>').join(''))+'</div><p>Fecha solicitada: '+esc(o.requested_date||'Sin fecha')+' · '+esc(labels[o.status]||o.status)+'</p>'+(o.customer_notes?'<p>Indicaciones: '+esc(o.customer_notes)+'</p>':'')+(o.status==='delivered'?'<p style="color:#237b60"><b>✓ Entregado</b></p>'+(o.driver_delivery_comment?'<p>Observaciones: '+esc(o.driver_delivery_comment)+'</p>':''):'<label>Observaciones de la entrega (artículos rechazados, faltantes, incidencias)</label><textarea maxlength="2000" data-driver-comment="'+o.id+'" placeholder="Escribe aquí cualquier incidencia de entrega"></textarea><button type="button" data-driver-delivered="'+o.id+'" '+(!['shipped','ready_for_pickup'].includes(o.status)?'disabled title="El pedido debe estar preparado o enviado"':'')+'>Confirmar pedido entregado</button>')+'</section>').join(''):'<p class="muted">Todavía no tienes pedidos asignados.</p>')+'</section>'}
-function adminView(){if(tab==='daily_orders')return '<section id="dailyOrderReport" class="card"></section>';if(tab==='invite_app')return '<div data-tarraco-invites></div>';if(tab==='orders')return adminOrders();if(tab==='archive')return adminArchive();if(tab==='preparation')return adminPreparation();if(tab==='routes')return adminRoutes();if(tab==='statistics')return adminStatistics();if(tab==='customers')return adminCustomers();if(tab==='registrations')return registrationView();if(tab==='drivers')return adminDrivers();if(tab==='products')return adminProducts();if(tab==='chat')return chatView();if(tab==='visibility')return adminVisibility();if(tab==='offers')return adminOffers();if(tab==='prices')return adminPrices();if(tab==='storage')return adminStorage();if(tab==='notifications')return adminNotifications();if(tab==='cutoff')return adminCutoff();return ''}
+function adminView(){if(tab==='daily_orders')return '<section id="dailyOrderReport" class="card"></section>';if(tab==='invite_app')return '<div data-tarraco-invites></div>';if(tab==='orders')return adminOrders();if(tab==='archive')return adminArchive();if(tab==='preparation')return adminPreparation();if(tab==='routes')return adminRoutes();if(tab==='statistics')return adminStatistics();if(tab==='customers')return '<div data-tarraco-customers></div>';if(tab==='registrations')return registrationView();if(tab==='drivers')return adminDrivers();if(tab==='products')return adminProducts();if(tab==='chat')return chatView();if(tab==='visibility')return adminVisibility();if(tab==='offers')return adminOffers();if(tab==='prices')return adminPrices();if(tab==='storage')return adminStorage();if(tab==='notifications')return adminNotifications();if(tab==='cutoff')return adminCutoff();return ''}
 function adminRoutes(){return '<section class="card"><h3>Rutas de reparto</h3><p class="muted">Crea rutas y asigna empresas cuando lo necesites. Puedes dejarlas sin configurar hasta organizar los repartos.</p><form id="routeCreateForm"><label>Nombre de la ruta</label><input name="route_name" maxlength="100" required placeholder="Ejemplo: Tarragona centro"><label>Observaciones (opcional)</label><input name="route_notes" maxlength="500" placeholder="Zona, días o indicaciones"><button type="submit">Crear ruta</button></form><div id="routesList"><p class="muted">Cargando rutas…</p></div></section>'}
 async function loadRoutes(){const box=$('routesList');if(!box)return;try{const [a,b]=await Promise.all([db.from('delivery_routes').select('*').order('name'),db.from('delivery_route_companies').select('route_id,company_id')]);if(a.error)throw a.error;if(b.error)throw b.error;const routes=a.data||[],assignments=b.data||[];box.innerHTML=routes.length?routes.map(route=>'<section class="card"><h4>'+esc(route.name)+'</h4><label>Nombre</label><input data-route-name="'+route.id+'" maxlength="100" value="'+esc(route.name)+'"><label>Observaciones</label><input data-route-notes="'+route.id+'" maxlength="500" value="'+esc(route.notes||'')+'"><label>Empresas asignadas</label><div>'+companies.filter(c=>c.active!==false).map(c=>'<label style="display:block"><input type="checkbox" data-route-company="'+route.id+'" value="'+esc(c.id)+'" '+(assignments.some(x=>x.route_id===route.id&&x.company_id===c.id)?'checked':'')+'> '+esc(c.name)+'</label>').join('')+'</div><div class="row"><button type="button" data-route-save="'+route.id+'">Guardar cambios</button><button type="button" class="danger" data-route-delete="'+route.id+'">Eliminar ruta</button></div></section>').join(''):'<p class="muted">Todavía no hay rutas. Puedes crearlas más adelante.</p>'}catch(e){box.textContent='No se pudieron cargar las rutas: '+e.message}}
 function adminStatistics(){const active=orders.filter(o=>!o.archived_by_admin);const counts=new Map();for(const o of active){const name=companies.find(c=>c.id===o.company_id)?.name||'Empresa';counts.set(name,(counts.get(name)||0)+1)}const top=[...counts.entries()].sort((a,b)=>b[1]-a[1]);const month=new Date().toISOString().slice(0,7);const monthly=active.filter(o=>(o.created_at||'').slice(0,7)===month);return '<section class="card"><h3>Estadísticas de pedidos</h3><p class="muted">Resumen de pedidos registrados, sin importes. Los pedidos archivados no se incluyen.</p><div class="row"><strong>Pedidos activos: '+active.length+'</strong><strong>Pedidos este mes: '+monthly.length+'</strong><strong>Entregados: '+active.filter(o=>o.status==='delivered').length+'</strong><strong>Pendientes: '+active.filter(o=>o.status==='pending').length+'</strong></div><h3>Empresas con más pedidos</h3><button type="button" id="downloadStatisticsCSV" class="secondary">Descargar estadísticas CSV</button><div class="tablewrap"><table><thead><tr><th>Empresa</th><th>Pedidos</th></tr></thead><tbody>'+top.map(([name,n])=>'<tr><td>'+esc(name)+'</td><td>'+n+'</td></tr>').join('')+'</tbody></table></div><h3>Artículos más solicitados</h3><p class="muted">Cantidades agrupadas por artículo y unidad, sin sumar kilos con cajas o piezas.</p><div id="productStatistics">Cargando artículos…</div></section>'}
@@ -718,7 +776,7 @@ function adminArchive(){const archived=orders.filter(o=>o.archived_by_admin);ret
 function adminDrivers(){return '<section class="card"><h3>Crear repartidor</h3><p class="muted">Acceso independiente de clientes y administración. La sesión se recuerda en el dispositivo. No guardamos contraseñas visibles.</p><form id="driverForm"><label>Nombre del repartidor</label><input name="name" maxlength="100" required><label>Correo de acceso</label><input type="email" name="email" required><label>Contraseña inicial (mínimo 12 caracteres)</label><input type="password" name="password" minlength="12" autocomplete="new-password" required><button>Crear repartidor</button></form></section><section class="card"><h3>Repartidores registrados</h3><div id="driversList"><p class="muted">Cargando repartidores…</p></div></section>'}
 async function loadDrivers(){const box=$('driversList');if(!box)return;const {data,error}=await db.from('profiles').select('id,display_name').eq('role','driver').order('display_name');if(error){box.textContent='No se pudieron cargar repartidores: '+error.message;return}box.innerHTML=(data||[]).length?data.map(d=>'<div class="card"><label>Nombre</label><input data-driver-name="'+d.id+'" maxlength="100" value="'+esc(d.display_name||'')+'"><div class="row"><button type="button" data-driver-rename="'+d.id+'">Guardar nombre</button><button type="button" class="secondary" data-driver-password="'+d.id+'">Cambiar contraseña</button><button type="button" class="secondary" data-driver-disable="'+d.id+'">Desactivar acceso</button><button type="button" class="secondary" data-driver-enable="'+d.id+'">Activar acceso</button></div></div>').join(''):'<p class="muted">No hay repartidores creados.</p>'}
 async function manageDriver(body){const {data,error}=await db.functions.invoke('admin-manage-driver',{body});if(error)throw error;if(data?.error)throw Error(data.error);return data}
-function adminCustomers(){return `<div class="split"><section class="card"><h3>Crear empresa y acceso de cliente</h3><p class="muted">Se creará la empresa y su usuario de acceso. Contraseña mínima: 12 caracteres. Entrégala al cliente por un canal privado.</p><form id="customerForm"><label>Nombre de empresa/restaurante</label><input name="company_name" required><label>Persona de contacto</label><input name="contact_name"><label>Correo de acceso</label><input name="email" type="email" required><label>Contraseña inicial</label><input name="password" type="password" minlength="12" required><label>Teléfono</label><input name="phone"><label>Dirección</label><textarea name="address"></textarea><button style="margin-top:12px">Crear empresa y usuario</button></form></section><section class="card"><h3>Empresas registradas (${companies.length})</h3>${companies.some(c=>c.registration_pending)?`<div class="notice" style="border:2px solid #e89a47"><strong>Solicitudes de registro pendientes: ${companies.filter(c=>c.registration_pending).length}</strong><p>Comprueba el nombre de la empresa, contacto, teléfono y correo. Resuelve las solicitudes desde el aviso de Telegram.</p></div>`:''}<p class="muted">Puedes modificar sus datos y accesos. Las contraseñas actuales no se pueden consultar. Puedes enviar un enlace para restablecerlas o preparar un correo con los datos de acceso. Desactivar conserva el historial.</p>${companies.length?`<div class="tablewrap"><table><thead><tr><th>Empresa</th><th>Contacto</th><th>Estado</th><th>Gestión</th></tr></thead><tbody>${companies.map(c=>{const n=orders.filter(o=>o.company_id===c.id).length;return `<tr><td><b>${esc(c.name)}</b><div class="muted">${esc(c.email||'')}</div></td><td>${esc(c.contact_name||'')}<div class="muted">${esc(c.phone||'')}</div></td><td>${c.active?'Cuenta autorizada':c.registration_pending?'Pendiente de autorización':c.registration_rejected_at?'Solicitud rechazada':'Inactiva'}</td><td><div class="row"><button class="secondary" data-edit-company="${c.id}" ${c.registration_pending||c.registration_rejected_at?'disabled':''}>Modificar datos y acceso</button><button class="secondary" data-reset-company-password="${c.id}" ${c.registration_pending||c.registration_rejected_at?'disabled':''}>Restablecer contraseña</button><button class="secondary" data-send-company-access="${c.id}" ${c.registration_pending||c.registration_rejected_at?'disabled':''}>Enviar datos de acceso</button><button class="secondary" data-company-active="${c.id}" data-active="${c.active}" ${c.registration_pending||c.registration_rejected_at?'disabled':''}>${c.active?'Desactivar':c.registration_pending?'Pendiente en Telegram':c.registration_rejected_at?'Solicitud rechazada':'Reactivar acceso'}</button><button class="danger" data-delete-company="${c.id}" data-orders="${n}" ${n?'disabled title="Tiene pedidos asociados"':''}>Eliminar</button></div><div class="muted">${n?`${n} pedido(s): conserva el historial`:'Sin pedidos asociados'}</div></td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted">No hay empresas.</p>'}</section></div><div id="companyEdit"></div>`}function productFields(p={}){
+function productFields(p={}){
  return `<div class="catalog-admin-fields">
   <label>Nombre<input name="name" value="${esc(p.name||'')}" required></label>
   <label>Código<input name="product_code" value="${esc(p.product_code||'')}"></label>
@@ -1076,8 +1134,6 @@ if(b.dataset.editCompany){const c=companies.find(x=>x.id===b.dataset.editCompany
 if(b.dataset.closeCompanyEdit){$('companyEdit').innerHTML='';return}
 if(b.dataset.resetCompanyPassword){const c=companies.find(x=>x.id===b.dataset.resetCompanyPassword);if(!c?.email)throw Error('La empresa no tiene correo de acceso.');if(!confirm('¿Enviar un enlace de restablecimiento de contraseña a '+c.email+'?'))return;const {error}=await db.auth.resetPasswordForEmail(c.email,{redirectTo:window.location.origin+window.location.pathname});if(error)throw error;msg('Solicitud de recuperación enviada a '+c.email+'. El cliente debe seguir las instrucciones del correo.','success');return}
  if(b.dataset.sendCompanyAccess){const c=companies.find(x=>x.id===b.dataset.sendCompanyAccess);if(!c?.email)throw Error('La empresa no tiene correo de acceso.');const subject='Datos de acceso — TARRACO SEA FOOD 2002 SL';const body='Hola,\n\nEstos son los datos para acceder a TARRACO SEA FOOD 2002 SL:\n\nUsuario: '+c.email+'\nAcceso: https://tarraco-pedidos-portal.vercel.app\n\nPor seguridad, la contraseña no se incluye en este mensaje. Si no la recuerdas, solicita un restablecimiento.\n\nUn saludo.';window.location.href='mailto:'+encodeURIComponent(c.email)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);return}
- if(b.dataset.companyActive){const id=b.dataset.companyActive,active=b.dataset.active!=='true';const {data,error}=await db.functions.invoke('admin-manage-company',{body:{action:'set_active',company_id:id,active}});if(error)throw error;if(data?.error)throw Error(data.error);await refresh();msg(active?'Empresa activada.':'Empresa desactivada; sus datos e historial se conservan.','success');return}
-if(b.dataset.deleteCompany){const id=b.dataset.deleteCompany,n=Number(b.dataset.orders||0);if(n>0)throw Error('Esta empresa tiene pedidos. No se puede borrar sin perder el historial; desactívala para impedir nuevos pedidos.');const company=companies.find(c=>c.id===id);if(!company)throw Error('No se encuentra la empresa.');if(!confirm(`¿Eliminar definitivamente “${company.name}” y sus tarifas y accesos? Esta acción no se puede deshacer.`))return;b.disabled=true;b.textContent='Eliminando…';const {data,error}=await db.functions.invoke('admin-manage-company',{body:{action:'delete',company_id:id}});if(error)throw error;if(!data?.ok||!data?.deleted)throw Error(data?.error||'Supabase no confirmó la eliminación.');await refresh();msg('Empresa eliminada definitivamente.','success');return}
 if(b.dataset.confirmReceipt){const id=b.dataset.confirmReceipt,o=orders.find(x=>x.id===id);if(!o||o.status!=='shipped')throw Error('Solo puedes confirmar pedidos enviados.');if(!confirm('¿Confirmas que has recibido el género de este pedido?'))return;b.disabled=true;b.textContent='Confirmando…';const {data,error}=await db.from('orders').update({status:'delivered',updated_at:new Date().toISOString()}).eq('id',id).eq('status','shipped').select('id,status').maybeSingle();if(error)throw error;if(!data||data.status!=='delivered')throw Error('No se pudo confirmar la recepción.');await refresh();msg('Recepción confirmada. TARRACO SEA FOOD verá el pedido como entregado.','success');return}
 if(b.hasAttribute('data-order-messages')){tab='chat';syncNav();render();return}
 if(b.dataset.cancelOrder){const id=b.dataset.cancelOrder,o=orders.find(x=>x.id===id);if(!canEditOrder(o))throw Error('El pedido ya no se puede cancelar.');if(!confirm('¿Quieres cancelar este pedido? Se conservará en el historial con estado Cancelado.'))return;b.disabled=true;b.textContent='Cancelando…';const {data,error}=await db.from('orders').update({status:'cancelled',updated_at:new Date().toISOString()}).eq('id',id).in('status',customerEditableStatuses).select('id,status').maybeSingle();if(error)throw error;if(!data||data.status!=='cancelled')throw Error('Supabase no confirmó la cancelación. El pedido puede haber cambiado de estado o faltar permisos.');editingOrderId=null;editItems=[];await refresh();notifyImportantOrder(id,'cancelled');msg('Pedido cancelado. Se conserva en el historial.','success');return}
@@ -1192,7 +1248,7 @@ function openPushLink(){
  clearPushLink();
  readPush(link.kind,link.id);
  if(link.kind==='registro'){
-  document.querySelector('[data-push-registration="'+link.id+'"]')?.scrollIntoView({block:'center'});
+  document.querySelector('[data-registration-id="'+link.id+'"]')?.closest('section')?.scrollIntoView({block:'center'});
  }else if(link.kind==='pedido'||link.kind==='reparto'){
   const button=document.querySelector('[data-detail="'+link.id+'"]');
   button?.click();
@@ -1239,22 +1295,30 @@ $('activityNotice').addEventListener('click',e=>{
 async function pollActivity(){
  if(!user||!profile||profile.role==='driver')return;
  const request=++activityRequest, currentUser=user.id;
- const [chat,registrations]=await Promise.all([
+ const [chat,registrations,access,linked]=await Promise.all([
   db.rpc('tarraco_chat_unread'),
   profile.role==='admin'?db.from('companies').select('*').eq('registration_pending',true).order('created_at',{ascending:false}):null,
+  profile.role==='customer'?db.from('companies').select('id').eq('id',profile.company_id).eq('active',true).maybeSingle():null,
+  profile.role==='admin'?db.rpc('tarraco_pending_registration_links'):null,
  ]);
  if(user?.id!==currentUser||request!==activityRequest)return;
+ if(access&&!access.error&&!access.data){
+  await logout();
+  msg('El acceso de tu restaurante está desactivado. Contacta con TARRACO SEA FOOD.','error');
+  return;
+ }
  if(!chat.error)unreadChats=new Map((chat.data||[]).map(x=>[x.company_id,Number(x.unread_count)]));
- if(registrations&&!registrations.error){
-  const previous=JSON.stringify(pendingRegistrations.map(c=>c.id).sort());
-  pendingRegistrations=registrations.data||[];
-  if(previous!==JSON.stringify(pendingRegistrations.map(c=>c.id).sort())){
+ if(registrations&&!registrations.error&&linked&&!linked.error){
+  const previous=JSON.stringify(pendingRegistrations);
+  pendingRegistrations=combineRegistrations(registrations.data,linked.data);
+  if(previous!==JSON.stringify(pendingRegistrations)){
    if(tab==='registrations')$('panel').innerHTML=registrationView();
    const stat=$('stats').querySelectorAll('.stat strong')[1];
    if(stat)stat.textContent=pendingRegistrations.length;
-   const updated=await db.from('companies').select('*').order('name');
+   const updated=await listAdminCompanies();
    if(user?.id!==currentUser||request!==activityRequest)return;
-   if(!updated.error){companies=updated.data||[];if(tab==='customers'&&!$('companyEdit')?.childElementCount)render();}
+   companies=updated;
+   if(tab==='customers'&&!$('panel').querySelector('[data-client-form],#companyEditForm')&&document.activeElement?.id!=='clientSearch')render();
   }
  }
  updateActivityBadges();
@@ -1263,9 +1327,25 @@ async function pollActivity(){
   if(!document.hidden)await loadChat();
  }
 }
+function combineRegistrations(legacy,links){
+ return [...(legacy||[]),...(links||[])].sort((a,b)=>b.created_at.localeCompare(a.created_at)||a.id.localeCompare(b.id));
+}
 function registrationView(){
- return '<section class="card"><h3>Solicitudes de registro ('+pendingRegistrations.length+')</h3><p>Revisa los datos de la empresa. Puedes autorizarla o rechazarla desde el aviso de Telegram.</p>'+
-  (pendingRegistrations.length?pendingRegistrations.map(c=>'<section class="chat-notice" data-push-registration="'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong><p>Pendiente de autorización · '+esc(date(c.created_at))+'</p><dl><dt>Persona de contacto</dt><dd>'+esc(c.contact_name||'—')+'</dd><dt>Teléfono</dt><dd>'+esc(c.phone||'—')+'</dd><dt>Correo electrónico</dt><dd>'+esc(c.email||'—')+'</dd></dl></section>').join(''):'<p class="muted">No hay solicitudes pendientes.</p>')+'</section>';
+ const descriptions={new:'Cliente nuevo · Se creará la ficha al autorizar.',review:'Vínculo pendiente · Hace falta confirmar la ficha.'};
+ return `<section class="card"><h3>Solicitudes de registro (${pendingRegistrations.length})</h3>
+ <p>Autoriza o rechaza las solicitudes desde el aviso de Telegram.</p>
+ ${pendingRegistrations.map(c=>{
+  const proposal=c.link_state==='matched'
+    ? 'Ficha propuesta · '+(c.candidate_name||'')+' · Código '+(c.candidate_code||'')
+    : descriptions[c.link_state];
+  return `<section class="chat-notice" data-registration-id="${esc(c.id)}"><strong>${esc(c.name)}</strong>
+  <p>Pendiente de autorización · ${esc(date(c.created_at))}</p>
+  ${proposal?`<p><strong>${esc(proposal)}</strong></p>`:''}
+  <dl>${c.tax_id?`<dt>NIF/CIF</dt><dd>${esc(c.tax_id)}</dd>`:''}
+  ${c.contact_name?`<dt>Persona de contacto</dt><dd>${esc(c.contact_name)}</dd>`:''}
+  <dt>Teléfono</dt><dd>${esc(c.phone||'—')}</dd>
+  <dt>Correo electrónico</dt><dd>${esc(c.email||'—')}</dd></dl></section>`;
+ }).join('')||'<p class="muted">No hay solicitudes pendientes.</p>'}</section>`;
 }
 function chatCompanyId(){return profile.role==='admin'?activeChatCompany:profile.company_id}
 function updateChatCompanyList(){
