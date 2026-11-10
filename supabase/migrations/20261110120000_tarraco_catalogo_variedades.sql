@@ -1,7 +1,8 @@
 alter table public.products
   add column catalog_group text,
   add column catalog_format text,
-  add column catalog_review text;
+  add column catalog_review text,
+  add column catalog_section text check (catalog_section in ('seafood', 'cephalopods', 'mixed-fish', 'prepared'));
 
 alter table public.order_items
   add column product_code_snapshot text,

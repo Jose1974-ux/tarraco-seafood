@@ -42,3 +42,48 @@ function orderArticleCode(item) {
     ? item.products?.product_code ?? ''
     : item.product_code_snapshot ?? '';
 }
+
+const catalogSections = Object.freeze({
+  fresh: 'Fresco',
+  seafood: 'Congelat - Marisc',
+  cephalopods: 'Congelats - Cefalopode',
+  'mixed-fish': 'Congelats - Peix Variat',
+  prepared: 'Congelats - Elab Precuinats/Verdures'
+});
+
+function catalogSection(product) {
+  return product.catalog_section ?? 'fresh';
+}
+
+function catalogNavigation() {
+  return `<nav class="catalog-navigation" aria-label="Secciones del catálogo">
+    <h4 id="catalogNavigationTitle" tabindex="-1">Elige una sección</h4>
+    <div class="catalog-navigation-options" id="catalogMainChoices">
+      <button type="button" data-catalog-location="fresh">Fresco</button>
+      <button type="button" data-catalog-location="frozen">Congelado</button>
+    </div>
+    <div class="catalog-navigation-options hidden" id="catalogFrozenChoices">
+      ${Object.entries(catalogSections).filter(([id]) => id !== 'fresh').map(([id, label]) =>
+        `<button type="button" data-catalog-location="${id}">${label}</button>`).join('')}
+    </div>
+    <div class="row catalog-navigation-back" id="catalogBack">
+      <button type="button" class="secondary" data-catalog-location="home">← Volver al inicio del catálogo</button>
+      <button type="button" class="secondary" id="catalogBackToFrozen" data-catalog-location="frozen">← Volver a Congelado</button>
+    </div>
+  </nav>`;
+}
+
+function updateCatalogNavigation() {
+  const home = catalogLocation === 'home';
+  const frozen = catalogLocation === 'frozen';
+  const label = catalogSections[catalogLocation];
+  const heading = $('catalogNavigationTitle');
+  heading.textContent = home ? 'Elige una sección' : 'Congelado';
+  heading.classList.toggle('hidden', !home && !frozen);
+  $('catalogMainChoices').classList.toggle('hidden', !home);
+  $('catalogFrozenChoices').classList.toggle('hidden', !frozen);
+  $('catalogBack').classList.toggle('hidden', home);
+  $('catalogBackToFrozen').classList.toggle('hidden', home || frozen || catalogLocation === 'fresh');
+  $('catalogBrowseResults').classList.toggle('hidden', !label);
+  $('catalogSectionTitle').textContent = label ?? '';
+}

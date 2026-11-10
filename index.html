@@ -170,7 +170,8 @@ async function ensureSupabaseLibrary(){
  }
  throw new Error('No se ha podido cargar el módulo de conexión. Comprueba la conexión a Internet o el bloqueo de scripts y vuelve a intentarlo.');
 }
-const customerProductColumns='id,name,category,unit,active,default_price,product_code,offer_price,offer_until,enabled_units,available_for_order,catalog_group,catalog_format';
+const customerProductColumns='id,name,category,unit,active,default_price,product_code,offer_price,offer_until,enabled_units,available_for_order,catalog_group,catalog_format,catalog_section';
+let catalogLocation='home';
 let user=null,profile=null,companies=[],products=[],orders=[],prices=[],customerOrderItems=[],tab='orders',cart={},cartPrep={},cartUnits={},favorites=[],onlyFavorites=false,onlyOffers=false,onlyFrequent=false,editingOrderId=null,editItems=[];
 const $=id=>document.getElementById(id);
 const labels={pending:'Pendiente',confirmed:'Confirmado',preparing:'En preparación',ready_for_pickup:'Listo para recoger',shipped:'Enviado',delivered:'Entregado',rejected:'Rechazado',cancelled:'Cancelado'};
@@ -222,7 +223,7 @@ function restoreDraft(){const key=draftKey();if(!key)return;try{const raw=localS
 async function clearCloudDraft(){if(!user||!profile?.company_id)return;const {error}=await db.from('customer_order_drafts').delete().eq('user_id',user.id);if(error)console.warn('No se pudo eliminar el borrador remoto',error)}
 function clearDraft(){const key=draftKey();if(key)try{localStorage.removeItem(key)}catch(e){}window.draftFields={};window.draftPaused=false}
 async function enter(u){user=u;try{const {data,error}=await db.from('profiles').select('role,display_name,company_id').eq('id',u.id).single();if(error)throw error;profile=data;if(data.role==='customer'){const {data:company,error:companyError}=await db.from('companies').select('active,registration_pending').eq('id',data.company_id).single();if(companyError)throw companyError;if(company.registration_pending)throw Error('Tu registro está pendiente de autorización por TARRACO SEA FOOD.');if(!company.active)throw Error('El acceso de tu empresa está desactivado. Contacta con TARRACO SEA FOOD.')}if(!['admin','customer','driver'].includes(data.role))throw Error('El perfil no tiene un rol autorizado');$('login').classList.add('hidden');$('app').classList.remove('hidden');$('logout').classList.remove('hidden');$('welcome').textContent=(data.display_name||u.email)+' · '+u.email;if(data.role==='customer'){restoreDraft();try{await restoreCloudDraft()}catch(e){console.warn('Borrador en otro dispositivo no disponible',e)}}applyPortalLink();preparePush();await refresh();openPushLink();startLiveUpdates();pollActivity().catch(e=>console.warn('Actualización de avisos',e))}catch(e){await db.auth.signOut();user=null;$('login').classList.remove('hidden');$('app').classList.add('hidden');msg(e.message.includes('pendiente de autorización')?'⏳ PENDIENTE DE AUTORIZACIÓN. Hemos recibido tu solicitud de registro. TARRACO SEA FOOD debe aprobar tu empresa antes de que puedas entrar y realizar pedidos.':('No se pudo validar el usuario: '+e.message),e.message.includes('pendiente de autorización')?'info':'error')}}
-async function logout(){const v=$('tutorialVideo');if(v)v.pause();const d=$('tutorialDetails');if(d)d.open=false;if(profile?.role==='admin'&&adminPush)await adminPush.disable().catch(()=>{});await db.auth.signOut();window.catalogQuery='';window.adminCatalogQuery='';window.adminCatalogReview=false;onlyFavorites=false;onlyOffers=false;onlyFrequent=false;user=null;profile=null;$('panel').replaceChildren();unreadChats=new Map();activeChatCompany=null;pendingRegistrations=[];orderWindow=null;orderAttemptId=null;submittedOrder=null;activityRequest++;cart={};cartPrep={};cartUnits={};$('app').classList.add('hidden');$('logout').classList.add('hidden');$('login').classList.remove('hidden');$('status').textContent='Sesión cerrada'}
+async function logout(){const v=$('tutorialVideo');if(v)v.pause();const d=$('tutorialDetails');if(d)d.open=false;if(profile?.role==='admin'&&adminPush)await adminPush.disable().catch(()=>{});await db.auth.signOut();catalogLocation='home';window.catalogQuery='';window.adminCatalogQuery='';window.adminCatalogReview=false;onlyFavorites=false;onlyOffers=false;onlyFrequent=false;user=null;profile=null;$('panel').replaceChildren();unreadChats=new Map();activeChatCompany=null;pendingRegistrations=[];orderWindow=null;orderAttemptId=null;submittedOrder=null;activityRequest++;cart={};cartPrep={};cartUnits={};$('app').classList.add('hidden');$('logout').classList.add('hidden');$('login').classList.remove('hidden');$('status').textContent='Sesión cerrada'}
 async function refresh(){clearMsg();if(profile.role==='driver'){const {data,error}=await db.from('orders').select('id,company_id,created_at,requested_date,status,customer_notes,driver_delivery_comment,driver_delivered_at').eq('assigned_driver_id',user.id).order('requested_date',{ascending:true});if(error)throw error;orders=data||[];const {data:details,error:detailError}=await db.rpc('driver_order_details');if(detailError)throw detailError;window.driverDetails=new Map((details||[]).map(d=>[d.order_id,d]));$('stats').innerHTML=stat('Mis repartos',orders.length)+stat('Pendientes de entrega',orders.filter(o=>o.status!=='delivered').length);setNav([['driver_orders','Mis repartos']]);render();return}if(profile.role==='admin'){const [a,b,c]=await Promise.all([db.from('companies').select('*').order('name'),db.from('products').select('*').order('name'),db.from('orders').select('*').order('created_at',{ascending:false})]);for(const x of [a,b,c])if(x.error)throw x.error;companies=a.data||[];pendingRegistrations=companies.filter(x=>x.registration_pending);products=b.data||[];orders=c.data||[];$('stats').innerHTML=stat('Empresas',companies.length)+stat('Solicitudes pendientes',pendingRegistrations.length)+stat('Productos',products.length)+stat('Pedidos activos',orders.filter(x=>!x.archived_by_admin).length)+stat('Pendientes',orders.filter(x=>!x.archived_by_admin&&x.status==='pending').length);setNav([['orders','Pedidos'],['daily_orders','Listado diario de pedidos'],['archive','Archivados'],['preparation','Preparación'],['routes','Rutas de reparto'],['statistics','Estadísticas'],['customers','Empresas y accesos'],['registrations','Solicitudes de registro'],['drivers','Repartidores'],['products','Productos'],['visibility','Artículos por cliente'],['offers','Ofertas por empresa'],['prices','Precios por empresa'],['storage','Almacenamiento'],['notifications','Notificaciones importantes'],['invite_app','Enviar aplicación a clientes'],['chat','Mensajes'],['cutoff','Horarios límite']]);}else{const [fav,catalog,o]=await Promise.all([
  db.from('customer_favorites').select('product_id').eq('user_id',user.id),
  readCustomerCatalog(profile.company_id),
@@ -485,22 +486,25 @@ function adminCustomers(){return `<div class="split"><section class="card"><h3>C
   <label>Grupo<input name="catalog_group" list="catalogGroupNames" value="${esc(p.catalog_group||'')}"></label>
   <label>Formato<input name="catalog_format" value="${esc(p.catalog_format||'')}" placeholder="C/1,5 KG"></label>
   <label>Categoría<input name="category" value="${esc(p.category||'')}"></label>
+  <label>Sección del catálogo<select name="catalog_section">${Object.entries(catalogSections).map(([id,label])=>`<option value="${id}" ${id===catalogSection(p)?'selected':''}>${label}</option>`).join('')}</select></label>
   <label>Unidad del precio<select name="unit">${Object.entries(unitNames).map(([u,label])=>`<option value="${u}" ${u===(p.unit||'kg')?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
   <label>Precio base (€)<input name="default_price" type="number" min="0" step="0.01" value="${p.default_price??''}"></label>
  </div>`;
 }
 function adminProducts(){
  const groups=catalogGroups(products).filter(g=>g.key.startsWith('group:'));
- return `<section class="card"><details class="catalog-group"><summary>Añadir producto o variedad</summary>
- <form class="catalog-admin-form catalog-variants" id="productForm">${productFields()}
+ return `<section class="card"><h3>Catálogo (${products.length})</h3>${catalogNavigation()}
+ <div id="catalogBrowseResults" class="hidden">
+ <h4 id="catalogSectionTitle" tabindex="-1"></h4>
+ <details class="catalog-group"><summary>Añadir producto o variedad</summary>
+ <form class="catalog-admin-form catalog-variants" id="productForm">${productFields({catalog_section:catalogSections[catalogLocation]?catalogLocation:null})}
  <button type="submit">Guardar producto</button></form></details>
  <datalist id="catalogGroupNames">${groups.map(g=>`<option value="${esc(g.title)}"></option>`).join('')}</datalist>
- </section><section class="card"><h3>Catálogo (${products.length})</h3>
  <label>Buscar artículo, código o grupo<input id="adminCatalogSearch" type="search" value="${esc(window.adminCatalogQuery||'')}"></label>
  <label class="fav-filter"><input id="adminCatalogReview" type="checkbox" ${window.adminCatalogReview?'checked':''}> Pendientes o sin precio</label>
  <div class="row"><button type="button" class="secondary" id="bulkUnavailable">Marcar seleccionados sin existencias</button><button type="button" class="secondary" id="bulkAvailable">Marcar seleccionados disponibles</button></div>
  <p class="muted hidden" id="adminCatalogEmpty">No se encontraron artículos.</p>
- <div class="simple-products">${products.map(p=>`<details class="catalog-group catalog-admin-row" data-admin-product="${p.id}" data-search="${esc(catalogSearchText(p))}" data-review="${!!p.catalog_review||p.default_price==null}">
+ <div class="simple-products">${products.map(p=>`<details class="catalog-group catalog-admin-row" data-admin-product="${p.id}" data-section="${catalogSection(p)}" data-search="${esc(catalogSearchText(p))}" data-review="${!!p.catalog_review||p.default_price==null}">
  <summary>${esc(p.name)} · ${esc(p.product_code||'Sin código')} · ${esc(p.catalog_format||'Sin formato')} · ${p.default_price==null?'Sin precio':esc(euro(p.default_price)+' / '+(unitNames[p.unit]||p.unit))} · ${p.active?'Visible en Pedidos':'Inactivo'}</summary>
  <div class="catalog-variants"><form class="catalog-admin-form" data-edit-article="${p.id}">${productFields(p)}
  ${p.catalog_review?`<p class="notice">${esc(p.catalog_review)}</p><label><input type="checkbox" name="reviewed" style="width:auto"> Quitar nota de revisión</label>`:''}
@@ -508,16 +512,17 @@ function adminProducts(){
  <label><input type="checkbox" data-availability-select="${p.id}" style="width:auto"> Seleccionar para cambiar existencias</label>
  <div class="row"><button type="button" class="secondary" data-toggle-availability="${p.id}">${p.available_for_order===false?'Agotado · Marcar disponible':'Marcar agotado'}</button>
  <button type="button" class="secondary" data-toggle-product="${p.id}" data-active="${p.active}">${p.active?'Desactivar':'Activar'}</button>
- <button type="button" class="danger" data-delete-product="${p.id}">Eliminar</button></div></div></details>`).join('')}</div></section>`;
+ <button type="button" class="danger" data-delete-product="${p.id}">Eliminar</button></div></div></details>`).join('')}</div></div></section>`;
 }
 function filterAdminCatalog(){
  const search=$('adminCatalogSearch');
  if(!search)return;
+ updateCatalogNavigation();
  window.adminCatalogQuery=search.value;
  window.adminCatalogReview=$('adminCatalogReview').checked;
  let found=false;
  for(const row of document.querySelectorAll('[data-admin-product]')){
-  const visible=catalogMatches(row.dataset.search,search.value)&&(!window.adminCatalogReview||row.dataset.review==='true');
+  const visible=row.dataset.section===catalogLocation&&catalogMatches(row.dataset.search,search.value)&&(!window.adminCatalogReview||row.dataset.review==='true');
   row.classList.toggle('hidden',!visible);
   found ||= visible;
  }
@@ -527,7 +532,7 @@ function articleFields(fields){
  const name=fields.name.trim();
  if(!name)throw Error('Introduce el nombre del artículo.');
  return {name,product_code:fields.product_code.trim()||null,catalog_group:fields.catalog_group.trim()||null,
-  catalog_format:fields.catalog_format.trim()||null,category:fields.category.trim()||null,unit:fields.unit,default_price:fields.default_price===''?null:Number(fields.default_price)};
+  catalog_format:fields.catalog_format.trim()||null,catalog_section:fields.catalog_section==='fresh'?null:fields.catalog_section,category:fields.category.trim()||null,unit:fields.unit,default_price:fields.default_price===''?null:Number(fields.default_price)};
 }
 function adminOffers(){return '<section class="card"><h3>Ofertas por empresa</h3><p class="muted">Selecciona un artículo con oferta. Sin empresas marcadas, la oferta es general; con empresas marcadas, solo ellas la verán.</p><label>Artículo</label><select id="offerTargetProduct"><option value="">Selecciona un artículo</option>'+products.filter(p=>p.active).map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join('')+'</select><div id="offerTargetEditor"><p class="muted">Selecciona un artículo.</p></div></section>'}
 async function loadOfferTargets(){const id=$('offerTargetProduct')?.value,box=$('offerTargetEditor');if(!box||!id)return;const {data,error}=await db.from('product_offer_targets').select('company_id').eq('product_id',id);if(error){box.textContent=error.message;return}const ids=new Set((data||[]).map(x=>x.company_id));box.innerHTML='<p class="muted">Sin empresas seleccionadas: oferta general.</p>'+companies.filter(c=>c.active).map(c=>'<label><input type="checkbox" data-offer-company="'+c.id+'" '+(ids.has(c.id)?'checked':'')+'> '+esc(c.name)+'</label>').join('')+'<button type="button" id="saveOfferTargets">Guardar destinatarios</button>'}
@@ -587,16 +592,16 @@ async function syncCustomerCatalog(){
 }
 setInterval(()=>syncCustomerCatalog().catch(error=>console.warn('No se pudo actualizar el catálogo',error)),60000);
 function customerProductPrice(p){return prices.find(x=>x.product_id===p.id)?.price??productUnitPrice(p)}
-function catalogCard(p){const price=customerProductPrice(p);const available=['kg','unit','box','sack','bag','dozen'].filter(u=>(p.enabled_units||[p.unit]).includes(u));const current=available.includes(cartUnits[p.id]||p.unit)?(cartUnits[p.id]||p.unit):available[0];return `<div class="simple-product ${offerActive(p)?'offer-highlight':''} ${p.available_for_order===false?'product-unavailable':''}" data-catalog-item="${p.id}" data-offer="${offerActive(p)?'true':'false'}" data-favorite="${favorites.includes(p.id)?'true':'false'}" data-search="${esc(catalogSearchText(p))}"><div class="simple-product-head"><div><strong>${esc(p.name)}</strong>${p.product_code?`<span class="muted"> · ${esc(p.product_code)}</span>`:''}${p.catalog_format?`<small class="muted catalog-format">${esc(p.catalog_format)}</small>`:''}</div><button type="button" class="simple-fav" data-toggle-favorite="${p.id}" aria-label="Marcar favorito">${favorites.includes(p.id)?'★':'☆'}</button></div><div class="simple-product-price">${offerActive(p)?'<span class="simple-offer-tag">OFERTA DEL DÍA</span>':''}${offerActive(p)&&p.default_price!=null?`<s>${euro(p.default_price)}</s>`:''}${price==null?'<b>Sin precio</b>':`<b>${euro(price)}</b><small>/ ${esc(unitNames[p.unit]||p.unit)}</small>`}</div>${p.available_for_order===false?'<p class="unavailable-label" role="status">⛔ SIN EXISTENCIAS · No disponible para pedidos</p>':price!=null&&available.length?`<div class="simple-buy"><label class="simple-unit-label" for="unit-${p.id}">Unidad <select id="unit-${p.id}" aria-label="Elegir kilos, piezas, cajas, sacos, bolsas o docenas">${available.map(u=>`<option value="${u}" ${current===u?'selected':''}>${u==='kg'?'Kilos':u==='unit'?'Piezas':u==='box'?'Cajas':u==='sack'?'Sacos':u==='bag'?'Bolsas':'Docenas'}</option>`).join('')}</select></label><div class="simple-buy-row"><label for="qty-${p.id}">Cantidad <input class="qty" type="number" min="0" step="0.01" id="qty-${p.id}" value="${cart[p.id]||''}" placeholder="0"></label><button type="button" data-add-cart="${p.id}" class="${cart[p.id]>0?'is-added':''}">${cart[p.id]>0?'✓ Añadido':'＋ Añadir'}</button></div><input class="simple-prep" id="prep-${p.id}" placeholder="Preparación o corte (opcional)" aria-label="Preparación o corte" value="${esc(cartPrep[p.id]||'')}"></div>`:'<p class="muted">No disponible para pedidos. '+(price==null?'Precio pendiente de configurar.':'Unidad pendiente de configurar.')+'</p>'}</div>`}
+function catalogCard(p){const price=customerProductPrice(p);const available=['kg','unit','box','sack','bag','dozen'].filter(u=>(p.enabled_units||[p.unit]).includes(u));const current=available.includes(cartUnits[p.id]||p.unit)?(cartUnits[p.id]||p.unit):available[0];return `<div class="simple-product ${offerActive(p)?'offer-highlight':''} ${p.available_for_order===false?'product-unavailable':''}" data-catalog-item="${p.id}" data-section="${catalogSection(p)}" data-offer="${offerActive(p)?'true':'false'}" data-favorite="${favorites.includes(p.id)?'true':'false'}" data-search="${esc(catalogSearchText(p))}"><div class="simple-product-head"><div><strong>${esc(p.name)}</strong>${p.product_code?`<span class="muted"> · ${esc(p.product_code)}</span>`:''}${p.catalog_format?`<small class="muted catalog-format">${esc(p.catalog_format)}</small>`:''}</div><button type="button" class="simple-fav" data-toggle-favorite="${p.id}" aria-label="Marcar favorito">${favorites.includes(p.id)?'★':'☆'}</button></div><div class="simple-product-price">${offerActive(p)?'<span class="simple-offer-tag">OFERTA DEL DÍA</span>':''}${offerActive(p)&&p.default_price!=null?`<s>${euro(p.default_price)}</s>`:''}${price==null?'<b>Sin precio</b>':`<b>${euro(price)}</b><small>/ ${esc(unitNames[p.unit]||p.unit)}</small>`}</div>${p.available_for_order===false?'<p class="unavailable-label" role="status">⛔ SIN EXISTENCIAS · No disponible para pedidos</p>':price!=null&&available.length?`<div class="simple-buy"><label class="simple-unit-label" for="unit-${p.id}">Unidad <select id="unit-${p.id}" aria-label="Elegir kilos, piezas, cajas, sacos, bolsas o docenas">${available.map(u=>`<option value="${u}" ${current===u?'selected':''}>${u==='kg'?'Kilos':u==='unit'?'Piezas':u==='box'?'Cajas':u==='sack'?'Sacos':u==='bag'?'Bolsas':'Docenas'}</option>`).join('')}</select></label><div class="simple-buy-row"><label for="qty-${p.id}">Cantidad <input class="qty" type="number" min="0" step="0.01" id="qty-${p.id}" value="${cart[p.id]||''}" placeholder="0"></label><button type="button" data-add-cart="${p.id}" class="${cart[p.id]>0?'is-added':''}">${cart[p.id]>0?'✓ Añadido':'＋ Añadir'}</button></div><input class="simple-prep" id="prep-${p.id}" placeholder="Preparación o corte (opcional)" aria-label="Preparación o corte" value="${esc(cartPrep[p.id]||'')}"></div>`:'<p class="muted">No disponible para pedidos. '+(price==null?'Precio pendiente de configurar.':'Unidad pendiente de configurar.')+'</p>'}</div>`}
 function catalogCards(){
- return catalogGroups(products).map(group=>{
+ return Object.keys(catalogSections).flatMap(section=>catalogGroups(products.filter(p=>catalogSection(p)===section)).map(group=>{
   if(group.items.length===1)return catalogCard(group.items[0]);
-  return `<details class="catalog-group" data-catalog-group="${esc(group.key)}">
+  return `<details class="catalog-group" data-catalog-group="${section}:${esc(group.key)}">
    <summary>${esc(group.title)} <small data-group-count>${group.items.length} variedades</small></summary>
    <div class="catalog-variants">${group.items.map(catalogCard).join('')}</div></details>`;
- }).join('');
+ })).join('');
 }
-function catalogView(){return `<section class="card simple-catalog"><h3>Elige tu pescado</h3><div id="orderCutoffBanner" class="chat-notice hidden"><p id="orderCutoffSummary"></p><button type="button" data-urgent-order class="secondary">Solicitar atención urgente</button></div><p class="muted">Busca el pescado, selecciona la unidad, indica la cantidad y pulsa Añadir.</p><input id="catalogSearch" type="search" value="${esc(window.catalogQuery||'')}" aria-controls="catalogSuggestions" aria-label="Buscar pescado o código" placeholder="🔎 Buscar pescado o código…" autocomplete="off"><div id="catalogSuggestions" class="catalog-suggestions hidden" role="listbox" aria-label="Artículos encontrados"></div><p id="catalogSearchEmpty" class="muted hidden">No se encontraron artículos.</p><label class="fav-filter"><input type="checkbox" id="onlyFavorites" ${onlyFavorites?'checked':''}> Solo mis favoritos</label><label class="fav-filter"><input type="checkbox" id="onlyFrequent" ${onlyFrequent?'checked':''}> Mis productos frecuentes</label><div class="offer-spotlight" id="catalogOfferSpotlight"><h3>🔥 Ofertas del día</h3><button type="button" class="catalog-offer-filter" id="onlyOffersButton" aria-pressed="false">Ver solo ofertas</button></div><div class="simple-products" id="catalogProducts">${catalogCards()}</div></section><section class="card"><h3>Tu pedido</h3><div id="cartView">${cartView()}</div><form id="placeOrder"><label>Entrega</label><select name="fulfilment"><option value="delivery">Envío</option><option value="pickup">Recogida</option></select><label for="requestedDeliveryDate">¿Para qué día necesitas el pedido?</label><input id="requestedDeliveryDate" name="requested_date" type="date" aria-describedby="orderWindowNotice"><p id="orderWindowNotice" class="notice info" role="status">Consultando fechas disponibles…</p><button type="button" id="orderUrgentButton" class="secondary hidden">Solicitar atención urgente para una fecha anterior</button><label>Observaciones</label><textarea name="customer_notes" placeholder="Horario o instrucciones…"></textarea><div class="row" style="margin-top:12px"><button type="button" class="secondary" id="saveDraftButton">Guardar</button><button type="button" class="secondary" id="pauseDraftButton">Pausar</button></div><button id="sendOrderButton" type="submit" style="margin-top:12px;background:#176b87;padding:11px 18px">Enviar pedido</button><p id="orderFormResult" class="chat-notice order-feedback hidden" role="alert" tabindex="-1"></p><p class="muted" style="font-size:12px;margin-top:8px">Guardar y Pausar no envían el pedido.</p></form></section>`}
+function catalogView(){return `<section class="card simple-catalog"><h3>Elige tu pescado</h3><div id="orderCutoffBanner" class="chat-notice hidden"><p id="orderCutoffSummary"></p><button type="button" data-urgent-order class="secondary">Solicitar atención urgente</button></div>${catalogNavigation()}<div id="catalogBrowseResults" class="hidden"><h4 id="catalogSectionTitle" tabindex="-1"></h4><p class="muted">Busca el pescado, selecciona la unidad, indica la cantidad y pulsa Añadir.</p><input id="catalogSearch" type="search" value="${esc(window.catalogQuery||'')}" aria-controls="catalogSuggestions" aria-label="Buscar pescado o código" placeholder="🔎 Buscar pescado o código…" autocomplete="off"><div id="catalogSuggestions" class="catalog-suggestions hidden" role="listbox" aria-label="Artículos encontrados"></div><p id="catalogSearchEmpty" class="muted hidden">No se encontraron artículos.</p><label class="fav-filter"><input type="checkbox" id="onlyFavorites" ${onlyFavorites?'checked':''}> Solo mis favoritos</label><label class="fav-filter"><input type="checkbox" id="onlyFrequent" ${onlyFrequent?'checked':''}> Mis productos frecuentes</label><div class="offer-spotlight" id="catalogOfferSpotlight"><h3>🔥 Ofertas del día</h3><button type="button" class="catalog-offer-filter" id="onlyOffersButton" aria-pressed="false">Ver solo ofertas</button></div><div class="simple-products" id="catalogProducts">${catalogCards()}</div></div></section><section class="card"><h3>Tu pedido</h3><div id="cartView">${cartView()}</div><form id="placeOrder"><label>Entrega</label><select name="fulfilment"><option value="delivery">Envío</option><option value="pickup">Recogida</option></select><label for="requestedDeliveryDate">¿Para qué día necesitas el pedido?</label><input id="requestedDeliveryDate" name="requested_date" type="date" aria-describedby="orderWindowNotice"><p id="orderWindowNotice" class="notice info" role="status">Consultando fechas disponibles…</p><button type="button" id="orderUrgentButton" class="secondary hidden">Solicitar atención urgente para una fecha anterior</button><label>Observaciones</label><textarea name="customer_notes" placeholder="Horario o instrucciones…"></textarea><div class="row" style="margin-top:12px"><button type="button" class="secondary" id="saveDraftButton">Guardar</button><button type="button" class="secondary" id="pauseDraftButton">Pausar</button></div><button id="sendOrderButton" type="submit" style="margin-top:12px;background:#176b87;padding:11px 18px">Enviar pedido</button><p id="orderFormResult" class="chat-notice order-feedback hidden" role="alert" tabindex="-1"></p><p class="muted" style="font-size:12px;margin-top:8px">Guardar y Pausar no envían el pedido.</p></form></section>`}
 
 function applyDraftFields(){const form=document.getElementById('placeOrder');if(!form||!window.draftFields)return;for(const k of ['fulfilment','requested_date','customer_notes'])if(window.draftFields[k]!=null&&form.elements[k])form.elements[k].value=window.draftFields[k]}
 function cartView(){const rows=Object.entries(cart).filter(([id,q])=>Number(q)>0);if(!rows.length)return '<p class="muted">Todavía no has añadido productos.</p>';return `<div class="tablewrap"><table><thead><tr><th>Producto</th><th>Cantidad solicitada</th><th>Preparación</th><th></th></tr></thead><tbody>${rows.map(([id,q])=>{const p=products.find(x=>x.id===id);if(!p)return `<tr><td>Artículo que ya no está disponible</td><td>${q}</td><td>—</td><td><button class="danger" data-remove-cart="${id}">Quitar</button></td></tr>`;const unit=cartUnits[id]||p.unit;return `<tr><td>${esc(p.name)}${p.product_code?' · '+esc(p.product_code):''}${p.catalog_format?`<small class="catalog-format">${esc(p.catalog_format)}</small>`:''}</td><td>${q} ${unitNames[unit]||unit}</td><td>${esc(cartPrep[id]||'—')}</td><td><button class="danger" data-remove-cart="${id}">Quitar</button></td></tr>`}).join('')}</tbody></table></div><p class="muted">Pedido de cantidades, sin cálculo de importes.</p>`}
@@ -638,8 +643,9 @@ function frequentProductIds(){const count=new Map();for(const item of customerOr
 function filterCatalog(showSuggestions=false,selectedId=null){
  const input=$('catalogSearch'),box=$('catalogSuggestions');
  if(!input||!box)return;
+ updateCatalogNavigation();
  const query=input.value;
- const hasOffers=products.some(offerActive);
+ const hasOffers=products.some(p=>catalogSection(p)===catalogLocation&&offerActive(p));
  $('catalogOfferSpotlight')?.classList.toggle('hidden',!hasOffers);
  if(!hasOffers)onlyOffers=false;
  window.catalogQuery=query;
@@ -647,7 +653,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  const frequent=onlyFrequent?frequentProductIds():null;
  const shown=[];
  for(const card of document.querySelectorAll('[data-catalog-item]')){
-  const visible=(!selectedId||card.dataset.catalogItem===selectedId)&&catalogMatches(card.dataset.search,query)
+  const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&catalogMatches(card.dataset.search,query)
    &&(!onlyFavorites||card.dataset.favorite==='true')&&(!onlyOffers||card.dataset.offer==='true')
    &&(!frequent||frequent.has(card.dataset.catalogItem));
   card.classList.toggle('hidden',!visible);
@@ -672,6 +678,23 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  box.classList.toggle('hidden',!suggestions.length);
 }
 $('panel').addEventListener('click',e=>{
+ const navigation=e.target.closest('[data-catalog-location]');
+ if(navigation){
+  catalogLocation=navigation.dataset.catalogLocation;
+  const search=$('adminCatalogSearch')||$('catalogSearch');
+  if(search)search.value='';
+  if($('adminCatalogSearch')){
+   const section=$('productForm')?.elements.catalog_section;
+   if(section&&catalogSections[catalogLocation])section.value=catalogLocation;
+   for(const selected of $('panel').querySelectorAll('[data-availability-select]:checked'))selected.checked=false;
+   filterAdminCatalog();
+  }else{
+   onlyOffers=false;
+   filterCatalog();
+  }
+  ($('catalogBrowseResults').classList.contains('hidden')?$('catalogNavigationTitle'):$('catalogSectionTitle')).focus();
+  return;
+ }
  const button=e.target.closest('#onlyOffersButton,[data-select-catalog]');
  if(!button)return;
  if(button.id==='onlyOffersButton'){onlyOffers=!onlyOffers;filterCatalog();return}

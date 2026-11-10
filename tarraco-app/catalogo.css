@@ -16,3 +16,11 @@
 .catalog-admin-form label { margin: 0; }
 .catalog-admin-row { scroll-margin-top: 1rem; }
 .catalog-admin-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: .5rem; }
+.catalog-navigation { margin-bottom: 1rem; }
+.catalog-navigation-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: .65rem;
+}
+.catalog-navigation-options button { min-height: 48px; text-align: left; }
+.catalog-navigation-back { margin-top: .65rem; }
