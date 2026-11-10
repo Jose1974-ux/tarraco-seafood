@@ -805,6 +805,15 @@ $('panel').addEventListener('change',async e=>{
  }
  if(e.target.id==='offerTargetProduct'){await loadOfferTargets();return}if(e.target.id==='visibilityCompany'){loadVisibility();return}if(e.target.id==='priceCompany')await loadPrices(e.target.value)});
 function frequentProductIds(){const count=new Map();for(const item of customerOrderItems){const id=item.product_id;if(id)count.set(id,(count.get(id)||0)+1)}return new Set([...count.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]))}
+function catalogPrefixMatch(id,query){
+ const term=String(query||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(!term)return true;
+ const product=products.find(p=>String(p.id)===String(id));
+ if(!product)return false;
+ const name=String(product.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const code=String(product.product_code||'').toLowerCase();
+ return name.startsWith(term)||code.startsWith(term);
+}
 function filterCatalog(showSuggestions=false,selectedId=null){
  const input=$('catalogSearch'),box=$('catalogSuggestions');
  if(!input||!box)return;
@@ -818,7 +827,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  const frequent=onlyFrequent?frequentProductIds():null;
  const shown=[];
  for(const card of document.querySelectorAll('[data-catalog-item]')){
-  const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&catalogMatches(card.dataset.search,query)
+  const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&catalogPrefixMatch(card.dataset.catalogItem,query)
    &&(!onlyFavorites||card.dataset.favorite==='true')&&(!onlyOffers||card.dataset.offer==='true')
    &&(!frequent||frequent.has(card.dataset.catalogItem));
   card.classList.toggle('hidden',!visible);
@@ -838,7 +847,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  }
  const byId=new Map(products.map(p=>[p.id,p]));
  const suggestions=showSuggestions&&query.trim()?shown.map(card=>byId.get(card.dataset.catalogItem))
-  .sort((a,b)=>Number(b.product_code===query.trim())-Number(a.product_code===query.trim())).slice(0,20):[];
+  .sort((a,b)=>Number(b.product_code===query.trim())-Number(a.product_code===query.trim())):[];
  box.innerHTML=suggestions.map(p=>`<button type="button" class="catalog-suggestion" role="option" data-select-catalog="${p.id}">${esc(p.name)}<small>${esc([p.product_code,p.catalog_format].filter(Boolean).join(' · '))}</small></button>`).join('');
  box.classList.toggle('hidden',!suggestions.length);
 }
