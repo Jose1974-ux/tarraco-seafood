@@ -29,7 +29,7 @@
           <button type="button" data-client-action="new">Crear cliente</button>
           <button type="button" class="secondary" data-client-action="reload">Actualizar</button>
         </div>
-        <label for="clientSearch">Buscar por nombre, código, NIF/CIF o teléfono</label>
+        <label for="clientSearch">Buscar por nombre, alias, código, NIF/CIF o teléfono</label>
         <input id="clientSearch" type="search" autocomplete="off" value="${esc(query)}">
         <label><input data-client-archived type="checkbox" style="width:auto" ${showArchived ? 'checked' : ''}> Mostrar archivados</label>
         <details><summary>Crear cliente con acceso manual</summary><form id="customerForm"><label>Nombre de empresa/restaurante</label><input name="company_name" required><label>Persona de contacto</label><input name="contact_name"><label>Correo de acceso</label><input name="email" type="email" required><label>Contraseña inicial</label><input name="password" type="password" minlength="12" required><label>Teléfono</label><input name="phone"><label>Dirección</label><textarea name="address"></textarea><button style="margin-top:12px">Crear cliente y acceso</button></form></details>
