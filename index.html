@@ -818,7 +818,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  const frequent=onlyFrequent?frequentProductIds():null;
  const shown=[];
  for(const card of document.querySelectorAll('[data-catalog-item]')){
-  const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&catalogMatches(card.dataset.search,query)
+  const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&(!query.trim()||((card.querySelector('.simple-product-head strong')?.textContent||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').startsWith(query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es'))||((products.find(p=>p.id===card.dataset.catalogItem)?.product_code||'').toLowerCase().startsWith(query.trim().toLowerCase())))
    &&(!onlyFavorites||card.dataset.favorite==='true')&&(!onlyOffers||card.dataset.offer==='true')
    &&(!frequent||frequent.has(card.dataset.catalogItem));
   card.classList.toggle('hidden',!visible);
@@ -838,7 +838,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  }
  const byId=new Map(products.map(p=>[p.id,p]));
  const suggestions=showSuggestions&&query.trim()?shown.map(card=>byId.get(card.dataset.catalogItem))
-  .sort((a,b)=>Number(b.product_code===query.trim())-Number(a.product_code===query.trim())).slice(0,20):[];
+  .sort((a,b)=>Number(b.product_code===query.trim())-Number(a.product_code===query.trim())):[];
  box.innerHTML=suggestions.map(p=>`<button type="button" class="catalog-suggestion" role="option" data-select-catalog="${p.id}">${esc(p.name)}<small>${esc([p.product_code,p.catalog_format].filter(Boolean).join(' · '))}</small></button>`).join('');
  box.classList.toggle('hidden',!suggestions.length);
 }
