@@ -225,7 +225,7 @@ async function loginNow(){
   if(error?.code==='email_not_confirmed'){
    const state=await refreshRegistrationStatus();
    if(trackedLogin&&state==='authorized')({data,error}=await db.auth.signInWithPassword(credentials));
-   else if(trackedLogin&&(state==='pending'||state==='needs_code'||state==='review'||state==='rejected')){
+   else if(trackedLogin&&(state==='pending'||state==='needs_code'||state==='confirm_code'||state==='review'||state==='rejected')){
     $('status').textContent='Conexión disponible';
     return;
    }
@@ -247,6 +247,7 @@ $('loginForm').addEventListener('submit',e=>{e.preventDefault();loginNow()});
 document.querySelectorAll('[data-toggle-registration-password]').forEach(button=>button.addEventListener('click',()=>{const field=$(button.dataset.toggleRegistrationPassword);const visible=field.type==='password';field.type=visible?'text':'password';button.setAttribute('aria-pressed',String(visible));button.setAttribute('aria-label',visible?'Ocultar contraseña':'Mostrar contraseña');button.title=visible?'Ocultar contraseña':'Mostrar contraseña';button.textContent=visible?'🙈':'👁';}));
 const registrationMessages={
  pending:'⏳ Solicitud recibida · Pendiente de autorización por TARRACO SEA FOOD.',
+ confirm_code:'✓ TARRACO ha autorizado tu solicitud. Introduce el código de cliente de tu ficha existente para activar el acceso.',
  needs_code:'Tu solicitud sigue pendiente. Si ya eres cliente, añade tu código de TARRACO para ayudarnos a localizar tu ficha. Si no lo tienes, contacta con TARRACO.',
  review:'Tu solicitud sigue pendiente de revisión. Contacta con TARRACO para confirmar los datos del restaurante.',
  authorized:'✓ Tu empresa ha sido autorizada. Ya puedes iniciar sesión con el correo y la contraseña del registro.',
@@ -264,7 +265,8 @@ function showRegistrationStatus(state){
  status.classList.remove('hidden');
  status.classList.toggle('authorized',state==='authorized');
  $('registrationLoginButton').classList.toggle('hidden',state!=='authorized');
- $('registrationCodeForm').classList.toggle('hidden',state!=='needs_code');
+ $('registrationCodeForm').classList.toggle('hidden',state!=='needs_code'&&state!=='confirm_code');
+ $('registrationCodeForm').querySelector('button').textContent=state==='confirm_code'?'Confirmar código y activar acceso':'Enviar código';
  if(out.textContent!==message)out.textContent=message;
 }
 async function refreshRegistrationStatus(){
@@ -343,21 +345,21 @@ $('registrationCodeForm').addEventListener('submit',async e=>{
  button.disabled=true;
  out.textContent='Comprobando el código…';
  try{
-  const {data,error}=await db.functions.invoke('tarraco-registration',{body:{action:'code',tracking,code:$('registrationCode').value}});
+  const {data,error}=await db.functions.invoke('tarraco-registration',{body:{action:registrationState==='confirm_code'?'confirm_existing_code':'code',tracking,code:$('registrationCode').value}});
   if(error){
    const detail=await error.context?.json?.().catch(()=>null);
    throw Error(detail?.error||'No se pudo comprobar el código. Vuelve a intentarlo.');
   }
   if(registrationTracking!==tracking||user)return;
   if(!registrationMessages[data?.status])throw Error('No se pudo comprobar el código.');
-  out.textContent=data.status==='needs_code'?'La solicitud sigue pendiente. Revisa el código o contacta con TARRACO.':'';
+  out.textContent=data.status==='needs_code'?'La solicitud sigue pendiente. Revisa el código o contacta con TARRACO.':data.status==='confirm_code'?'Código incorrecto. Revisa el código de tu ficha o contacta con TARRACO.':'';
   e.target.reset();
   showRegistrationStatus(data.status);
  }catch(error){out.textContent=error.message}
  finally{button.disabled=false;registrationSubmittingCode=false}
 });
 setInterval(()=>{
- if(!document.hidden&&(!registrationState||registrationState==='pending'||registrationState==='needs_code'||registrationState==='review'))refreshRegistrationStatus();
+ if(!document.hidden&&(!registrationState||registrationState==='pending'||registrationState==='needs_code'||registrationState==='confirm_code'||registrationState==='review'))refreshRegistrationStatus();
 },5000);
 document.addEventListener('visibilitychange',()=>{
  if(!document.hidden)refreshRegistrationStatus();
