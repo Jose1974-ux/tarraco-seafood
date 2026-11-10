@@ -640,7 +640,53 @@ function printOrderSelection(page, chosen, items, getName){
  <script>
  document.getElementById('print').addEventListener('click',()=>window.print());
  window.addEventListener('load',()=>window.print());
- <\/script></body></html>`;
+ <\/script><style>
+#urgentAdminBanner{position:fixed;z-index:9998;top:65px;left:12px;right:12px;max-width:800px;margin:auto;background:#a20f0f;color:#fff;border:4px solid #ffd33d;border-radius:15px;padding:14px;box-shadow:0 10px 35px #0008;font-size:18px;font-weight:800}
+#urgentAdminBanner button,#urgentAdminAck{background:#ffd33d;color:#221900;font-weight:900;min-height:48px}
+#urgentAdminOverlay{position:fixed;inset:0;z-index:9999;background:#081c2ad9;display:flex;align-items:center;justify-content:center;padding:16px}
+#urgentAdminOverlay article{width:min(100%,560px);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;color:#172f3b}
+#urgentAdminOverlay h2{color:#a20f0f}
+#urgentAdminOverlay .urgent-text{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff0f0;padding:16px;border-radius:10px;font-size:18px}
+#urgentAdminOverlay button{display:block;width:100%;margin-top:12px}
+</style>
+<script>
+(function(){
+let items=[],busy=false,selected=null;
+function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function banner(){
+ let el=document.getElementById('urgentAdminBanner');if(!el){el=document.createElement('div');el.id='urgentAdminBanner';document.body.appendChild(el)}
+ const pending=items.filter(x=>!x.acknowledged_at);
+ el.style.display=profile?.role==='admin'&&pending.length?'block':'none';
+ el.innerHTML=pending.length?'🚨 '+pending.length+' AVISO(S) URGENTE(S) SIN CONFIRMAR <button id="urgentAdminOpen">VER AVISO</button>':'';
+}
+function modal(){
+ document.getElementById('urgentAdminOverlay')?.remove();
+ const x=items.find(v=>v.id===selected);if(!x)return;
+ const overlay=document.createElement('div');overlay.id='urgentAdminOverlay';
+ overlay.innerHTML='<article role="dialog" aria-modal="true"><h2>🚨 SOLICITUD URGENTE</h2><p><b>Empresa:</b> '+safe(x.companies?.name||'Sin nombre')+'</p><p><b>Fecha:</b> '+safe(new Date(x.created_at).toLocaleString('es-ES'))+'</p><div class="urgent-text">'+safe(x.details)+'</div><p>Telegram pedidos: '+(x.sent_orders?'Enviado':'No confirmado')+' · Telegram importantes: '+(x.sent_important?'Enviado':'No confirmado')+'</p><p id="urgentAdminMessage" role="status"></p><button id="urgentAdminAck" '+(x.acknowledged_at?'disabled':'')+'>✓ Confirmar recepción</button><button id="urgentAdminClose" class="secondary">Cerrar y volver</button></article>';
+ document.body.appendChild(overlay);
+}
+async function refreshUrgent(){
+ if(profile?.role!=='admin'){items=[];selected=null;banner();modal();return}
+ if(!db||busy)return;busy=true;
+ try{const {data,error}=await db.functions.invoke('admin-urgent-requests',{body:{action:'list'}});if(error||!Array.isArray(data?.requests))throw error||Error('Sin respuesta');items=data.requests;banner();if(selected)modal()}
+ catch(err){console.warn('Avisos urgentes',err?.message||err)}
+ finally{busy=false}
+}
+document.addEventListener('click',async e=>{
+ if(e.target.closest('#urgentAdminOpen')){selected=items.find(x=>!x.acknowledged_at)?.id;modal();return}
+ if(e.target.closest('#urgentAdminClose')){selected=null;modal();return}
+ const btn=e.target.closest('#urgentAdminAck');if(!btn||!selected)return;btn.disabled=true;
+ document.getElementById('urgentAdminMessage').textContent='Confirmando…';
+ try{const {data,error}=await db.functions.invoke('admin-urgent-requests',{body:{action:'ack',id:selected}});if(error||!data?.ok)throw error||Error('Error');items=items.map(x=>x.id===selected?{...x,acknowledged_at:new Date().toISOString()}:x);selected=null;banner();modal();refreshUrgent()}
+ catch(err){btn.disabled=false;document.getElementById('urgentAdminMessage').textContent='No se pudo confirmar: '+(err.message||String(err))}
+});
+setInterval(()=>{if(!document.hidden)refreshUrgent()},15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshUrgent()});
+setTimeout(refreshUrgent,1500);
+})();
+</script>
+</body></html>`;
  page.document.open();
  page.document.write(html);
  page.document.close();
