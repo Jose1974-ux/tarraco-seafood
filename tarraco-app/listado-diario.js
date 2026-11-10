@@ -1,5 +1,5 @@
 (() => {
-  const headers = ['Código', 'Artículo', 'Cantidad', 'Unidad', 'Peso (kg)', 'Preparación', 'Observaciones del pedido'];
+  const headers = ['Código', 'Artículo / variedad', 'Formato', 'Precio base (€)', 'Base del precio', 'Cantidad', 'Unidad', 'Peso (kg)', 'Preparación', 'Observaciones del pedido'];
   const companyName = 'TARRACO SEA FOOD 2002 SL';
   const madridDay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
   const number = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 12 });
@@ -44,14 +44,16 @@
     for (let start = 0; start < orders.length; start += batch) {
       const ids = orders.slice(start, start + batch).map(order => order.id);
       const items = await readPages(() => db.from('order_items')
-        .select('id,order_id,product_name_snapshot,quantity,unit_snapshot,preparation_notes,products(product_code)')
+        .select('id,order_id,product_name_snapshot,quantity,unit_snapshot,preparation_notes,product_code_snapshot,product_format_snapshot,unit_price_snapshot,price_unit_snapshot,products(product_code)')
         .in('order_id', ids));
       for (const item of items) {
         const order = byOrder.get(item.order_id);
         const unit = item.unit_snapshot;
         const quantity = Number(item.quantity);
         const weight = unit === 'kg' ? quantity : null;
-        order.rows.push([item.products?.product_code ?? '', item.product_name_snapshot, quantity, unit, weight, item.preparation_notes]);
+        order.rows.push([orderArticleCode(item), item.product_name_snapshot, item.product_format_snapshot,
+          item.unit_price_snapshot == null ? null : Number(item.unit_price_snapshot), item.price_unit_snapshot,
+          quantity, unit, weight, item.preparation_notes]);
         order.group.totals.set(unit, (order.group.totals.get(unit) ?? 0) + quantity);
         if (weight !== null) order.group.weight = (order.group.weight ?? 0) + weight;
       }
@@ -101,14 +103,15 @@
       });
       return sheet;
     };
-    const detail = addSheet('Pedidos', ['Cliente', 'Pedido', ...headers], [29, 12, 12, 36, 12, 12, 13, 28, 34]);
+    const detail = addSheet('Pedidos', ['Cliente', 'Pedido', ...headers], [25, 11, 10, 30, 15, 12, 12, 11, 10, 11, 21, 24]);
+    detail.getColumn(6).numFmt = '0.00';
     const totals = addSheet('Totales por cliente', ['Cliente', 'Unidad', 'Cantidad total', 'Peso total (kg)'], [38, 18, 18, 20]);
     groups.forEach((group, index) => {
       let first = true;
       for (const order of group.orders) {
-        for (const row of order.rows.length ? order.rows : [['', 'Sin artículos registrados', null, '', null, '']]) {
-          const [code, name, quantity, unit, weight, prep] = row;
-          detail.addRow([group.name, order.ref, code, name, quantity, unitName(unit), weight, prep, order.notes]).eachCell(cell => {
+        for (const row of order.rows.length ? order.rows : [['', 'Sin artículos registrados']]) {
+          const [code, name, format, price, basis, quantity, unit, weight, prep] = row;
+          detail.addRow([group.name, order.ref, code, name, format, price, basis ? unitName(basis) : null, quantity, unitName(unit), weight, prep, order.notes]).eachCell(cell => {
             if (index % 2) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDF5F6' } };
             if (first) cell.border = { top: { style: 'thin', color: { argb: 'FF176B87' } } };
           });
@@ -119,7 +122,7 @@
         totals.addRow([group.name, unitName(unit), quantity, unit === 'kg' ? group.weight : null]);
       }
     });
-    detail.autoFilter = 'A3:I' + detail.rowCount;
+    detail.autoFilter = 'A3:L' + detail.rowCount;
     totals.autoFilter = 'A3:D' + totals.rowCount;
     return book.xlsx.writeBuffer();
   }
@@ -160,7 +163,7 @@
           ${group.orders.map(order => `<div class="daily-order-reference">
             <h5>Pedido ${esc(order.ref)}</h5>
             ${order.rows.length ? `<table><thead><tr>${headers.map(label => `<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>
-              ${order.rows.map(([code, name, quantity, unit, weight, prep]) => `<tr>${cells([code || '—', name, number.format(quantity), unitName(unit), weight === null ? null : number.format(weight), prep || '—', order.notes || '—'])}</tr>`).join('')}
+              ${order.rows.map(([code, name, format, price, basis, quantity, unit, weight, prep]) => `<tr>${cells([code || '—', name, format, price === null ? null : number.format(price), basis ? unitName(basis) : null, number.format(quantity), unitName(unit), weight === null ? null : number.format(weight), prep || '—', order.notes || '—'])}</tr>`).join('')}
               </tbody></table>` : `<p>Sin artículos registrados</p><p>${esc(order.notes)}</p>`}</div>`).join('')}
           <p class="daily-order-totals"><strong>Totales por unidad</strong> ${[...group.totals].map(total => esc(showTotal(total))).join(' · ') || '—'}
           <br><strong>Peso total registrado</strong> ${group.weight === null ? '—' : number.format(group.weight) + ' kg'}</p>

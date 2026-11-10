@@ -19,8 +19,8 @@
 .daily-order-reference td, .daily-order-reference th { min-width: 0; overflow-wrap: anywhere; vertical-align: top; }
 .daily-order-reference td { white-space: pre-wrap; }
 .daily-order-reference :is(th,td):nth-child(2) { width: 22%; }
-.daily-order-reference :is(th,td):nth-child(6) { width: 17%; }
-.daily-order-reference :is(th,td):nth-child(7) { width: 20%; }
+.daily-order-reference :is(th,td):nth-child(9) { width: 13%; }
+.daily-order-reference :is(th,td):nth-child(10) { width: 14%; }
 .daily-cell-label { display: none; }
 .daily-order-totals { margin: .7rem; padding-top: .5rem; border-top: 1px solid #b7d3dc; }
 
@@ -32,7 +32,7 @@
   .daily-order-reference tr td:nth-child(n) { display: block; width: auto; padding: .35rem; border: 0; }
   .daily-order-reference td:nth-child(1) { grid-column: span 1; }
   .daily-order-reference td:nth-child(2) { grid-column: span 2; }
-  .daily-order-reference td:nth-child(n+6) { grid-column: 1 / -1; }
+  .daily-order-reference td:nth-child(n+9) { grid-column: 1 / -1; }
   .daily-cell-label { display: block; font-size: .72rem; font-weight: 700; color: #18516a; }
 }
 

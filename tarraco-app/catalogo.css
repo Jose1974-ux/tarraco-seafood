@@ -1,0 +1,18 @@
+.catalog-group {
+  border: 1px solid #b9d2dc;
+  border-radius: 12px;
+  background: #f4fafb;
+}
+.catalog-group > summary {
+  cursor: pointer;
+  padding: 14px;
+  color: #133849;
+  font-weight: 750;
+}
+.catalog-group > summary small { margin-inline-start: .5rem; font-weight: normal; }
+.catalog-variants { display: grid; gap: 8px; padding: 0 10px 10px; }
+.catalog-format { display: block; margin-top: .25rem; }
+.catalog-admin-form { display: grid; gap: .5rem; }
+.catalog-admin-form label { margin: 0; }
+.catalog-admin-row { scroll-margin-top: 1rem; }
+.catalog-admin-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: .5rem; }
