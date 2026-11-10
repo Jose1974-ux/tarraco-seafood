@@ -327,16 +327,17 @@ async function decideRegistrationLink(callback: TelegramCallback) {
     }).catch(() => {});
     return;
   }
-  if (decision !== "authorized" && decision !== "rejected") {
+  if (decision !== "authorized" && decision !== "rejected" && decision !== "code_pending") {
     await answer("Este aviso ya no está disponible. Comprueba si hay una solicitud más reciente.");
     return;
   }
   const authorized = decision === "authorized";
-  await answer(authorized ? "Cuenta autorizada. El cliente ya puede iniciar sesión." : "Solicitud rechazada.").catch(() => {});
+  const awaitingCode = decision === "code_pending";
+  await answer(awaitingCode ? "Solicitud aprobada. El cliente debe confirmar su código original antes de entrar." : authorized ? "Cuenta autorizada. El cliente ya puede iniciar sesión." : "Solicitud rechazada.").catch(() => {});
   const notice = await linkNotice(match[2]);
   if (notice) await telegram("editMessageText", {
     chat_id: chat.id, message_id: callback.message.message_id,
-    text: (authorized ? "✅ Cuenta autorizada" : "❌ Solicitud rechazada") + "\n\n" + linkNoticeDetails(notice),
+    text: (awaitingCode ? "🔐 Solicitud aprobada · Pendiente de confirmar código" : authorized ? "✅ Cuenta autorizada" : "❌ Solicitud rechazada") + "\n\n" + linkNoticeDetails(notice),
     reply_markup: { inline_keyboard: [] },
   }).catch(() => {});
 }
