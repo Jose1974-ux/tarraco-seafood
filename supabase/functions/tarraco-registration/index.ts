@@ -31,6 +31,13 @@ Deno.serve(async (req) => {
       return data as string | null;
     };
     if (body.action === "status") return reply({ status: await lookup() ?? "unavailable" });
+    if (body.action === "confirm_existing_code") {
+      const code = field(body.code);
+      if (!validCode(code)) return reply({ error: "Introduce un código de cliente válido." }, 400);
+      const { data, error } = await admin.rpc("tarraco_registration_confirm_code", { p_hash: hash, p_code: code });
+      if (error) throw error;
+      return reply({ status: data ?? "unavailable" });
+    }
     if (body.action === "code") {
       const code = field(body.code);
       if (!validCode(code)) return reply({ error: "Revisa el código de cliente e inténtalo de nuevo." }, 400);
