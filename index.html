@@ -872,9 +872,7 @@ function updateCustomerCatalog(catalog){
   const focused=document.activeElement,focusId=list.contains(focused)?focused.id:null;
   const selection=focused?.selectionStart==null?null:[focused.selectionStart,focused.selectionEnd];
   list.querySelectorAll('input,select').forEach(field=>catalogInputDrafts.set(field.id,field.value));
-  const openGroups=new Set([...list.querySelectorAll('details[open]')].map(group=>group.dataset.catalogGroup));
   list.innerHTML=nextCards;
-  list.querySelectorAll('[data-catalog-group]').forEach(group=>{group.open=openGroups.has(group.dataset.catalogGroup)});
   list.querySelectorAll('input,select').forEach(field=>{
    const value=catalogInputDrafts.get(field.id);
    if(value!=null&&(field.tagName!=='SELECT'||[...field.options].some(option=>option.value===value)))field.value=value;
@@ -916,14 +914,9 @@ setInterval(scheduleCatalogRefresh,300000);
 function catalogPrice(product){
  return prices.find(x=>x.product_id===product.id)?.price??(offerActive(product)?product.offer_price:product.default_price);
 }
-function catalogCard(p){const price=catalogPrice(p);const available=['kg','unit','box','sack','bag','dozen'].filter(u=>(p.enabled_units||[p.unit]).includes(u));const current=available.includes(cartUnits[p.id]||p.unit)?(cartUnits[p.id]||p.unit):available[0];return `<div class="simple-product ${offerActive(p)?'offer-highlight':''} ${p.available_for_order===false?'product-unavailable':''}" data-catalog-item="${p.id}" data-section="${catalogSection(p)}" data-offer="${offerActive(p)?'true':'false'}" data-favorite="${favorites.includes(p.id)?'true':'false'}" data-search="${esc(catalogSearchText(p))}"><div class="simple-product-head"><div><strong>${esc(p.name)}</strong>${p.product_code?`<span class="muted"> · <span class="article-code">COD.&nbsp;${esc(p.product_code)}</span></span>`:''}${p.catalog_format?`<small class="muted catalog-format">${esc(p.catalog_format)}</small>`:''}</div><button type="button" class="simple-fav" data-toggle-favorite="${p.id}" aria-label="Marcar favorito">${favorites.includes(p.id)?'★':'☆'}</button></div><div class="simple-product-price">${offerActive(p)?'<span class="simple-offer-tag">OFERTA DEL DÍA</span>':''}${offerActive(p)&&p.default_price!=null?`<s>${euro(p.default_price)}</s>`:''}${price==null?'<b>Sin precio</b>':`<b>${euro(price)}</b><small>/ ${esc(unitNames[p.unit]||p.unit)}</small>`}</div>${p.available_for_order===false?'<p class="unavailable-label" role="status">⛔ SIN EXISTENCIAS · No disponible para pedidos</p>':price!=null&&available.length?`<div class="simple-buy"><label class="simple-unit-label" for="unit-${p.id}">Unidad <select id="unit-${p.id}" aria-label="Elegir kilos, piezas, cajas, sacos, bolsas o docenas">${available.map(u=>`<option value="${u}" ${current===u?'selected':''}>${u==='kg'?'Kilos':u==='unit'?'Piezas':u==='box'?'Cajas':u==='sack'?'Sacos':u==='bag'?'Bolsas':'Docenas'}</option>`).join('')}</select></label><div class="simple-buy-row"><label for="qty-${p.id}">Cantidad <input class="qty" type="number" min="0" step="0.01" id="qty-${p.id}" value="${cart[p.id]||''}" placeholder="0"></label><button type="button" data-add-cart="${p.id}" class="${cart[p.id]>0?'is-added':''}">${cart[p.id]>0?'✓ Añadido':'＋ Añadir'}</button></div><input class="simple-prep" id="prep-${p.id}" placeholder="Preparación o corte (opcional)" aria-label="Preparación o corte" value="${esc(cartPrep[p.id]||'')}"></div>`:'<p class="muted">No disponible para pedidos. '+(price==null?'Precio pendiente de configurar.':'Unidad pendiente de configurar.')+'</p>'}</div>`}
+function catalogCard(p){const price=catalogPrice(p);const available=['kg','unit','box','sack','bag','dozen'].filter(u=>(p.enabled_units||[p.unit]).includes(u));const current=available.includes(cartUnits[p.id]||p.unit)?(cartUnits[p.id]||p.unit):available[0];return `<div class="simple-product ${offerActive(p)?'offer-highlight':''} ${p.available_for_order===false?'product-unavailable':''}" data-catalog-item="${p.id}" data-section="${catalogSection(p)}" data-offer="${offerActive(p)?'true':'false'}" data-favorite="${favorites.includes(p.id)?'true':'false'}" data-search="${esc(catalogSearchText(p))}"><div class="simple-product-head"><div><strong>${esc(p.name)}</strong>${p.product_code?`<span class="muted"> · <span class="article-code">COD.&nbsp;${esc(p.product_code)}</span></span>`:''}${p.catalog_format?`<small class="muted catalog-format">${esc(p.catalog_format)}</small>`:''}</div><button type="button" class="simple-fav" data-toggle-favorite="${p.id}" aria-label="Marcar favorito">${favorites.includes(p.id)?'★':'☆'}</button></div><div class="simple-product-price">${offerActive(p)?'<span class="simple-offer-tag">OFERTA DEL DÍA</span>':''}${offerActive(p)&&p.default_price!=null?`<s>${euro(p.default_price)}</s>`:''}${price==null?'':`<b>${euro(price)}</b><small>/ ${esc(unitNames[p.unit]||p.unit)}</small>`}</div>${price==null?'<p class="unavailable-label" role="status">(No disponible)</p>':p.available_for_order===false?'<p class="unavailable-label" role="status">⛔ SIN EXISTENCIAS · No disponible para pedidos</p>':available.length?`<div class="simple-buy"><label class="simple-unit-label" for="unit-${p.id}">Unidad <select id="unit-${p.id}" aria-label="Elegir kilos, piezas, cajas, sacos, bolsas o docenas">${available.map(u=>`<option value="${u}" ${current===u?'selected':''}>${u==='kg'?'Kilos':u==='unit'?'Piezas':u==='box'?'Cajas':u==='sack'?'Sacos':u==='bag'?'Bolsas':'Docenas'}</option>`).join('')}</select></label><div class="simple-buy-row"><label for="qty-${p.id}">Cantidad <input class="qty" type="number" min="0" step="0.01" id="qty-${p.id}" value="${cart[p.id]||''}" placeholder="0"></label><button type="button" data-add-cart="${p.id}" class="${cart[p.id]>0?'is-added':''}">${cart[p.id]>0?'✓ Añadido':'＋ Añadir'}</button></div><input class="simple-prep" id="prep-${p.id}" placeholder="Preparación o corte (opcional)" aria-label="Preparación o corte" value="${esc(cartPrep[p.id]||'')}"></div>`:'<p class="muted">No disponible para pedidos. Unidad pendiente de configurar.</p>'}</div>`}
 function catalogProductCards(){
- return Object.keys(catalogSections).flatMap(section=>catalogGroups(products.filter(p=>catalogSection(p)===section)).map(group=>{
-  if(group.items.length===1)return catalogCard(group.items[0]);
-  return `<details class="catalog-group" data-catalog-group="${section}:${esc(group.key)}">
-   <summary>${esc(group.title)} <small data-group-count>${group.items.length} variedades</small></summary>
-   <div class="catalog-variants">${group.items.map(catalogCard).join('')}</div></details>`;
- })).join('');
+ return products.map(catalogCard).join('');
 }
 function catalogView(){
  renderedCatalogCards=catalogProductCards();
@@ -1020,12 +1013,6 @@ function filterCatalog(showSuggestions=false,selectedId=null){
   card.classList.toggle('hidden',!visible);
   if(visible)shown.push(card);
  }
- for(const group of document.querySelectorAll('[data-catalog-group]')){
-  const count=group.querySelectorAll('[data-catalog-item]:not(.hidden)').length;
-  group.classList.toggle('hidden',count===0);
-  if(query.trim()&&count)group.open=true;
-  group.querySelector('[data-group-count]').textContent=count+' de '+group.querySelectorAll('[data-catalog-item]').length+' variedades';
- }
  $('catalogSearchEmpty').classList.toggle('hidden',shown.length!==0);
  const offers=$('onlyOffersButton');
  if(offers){
@@ -1063,8 +1050,6 @@ $('panel').addEventListener('click',e=>{
  const card=document.querySelector('[data-catalog-item="'+id+'"]');
  if(!card)return;
  filterCatalog(false,id);
- const group=card.closest('[data-catalog-group]');
- if(group)group.open=true;
  card.scrollIntoView({behavior:'smooth',block:'center'});
  (card.querySelector('.qty')||card.querySelector('.simple-fav'))?.focus({preventScroll:true});
 });
