@@ -5,7 +5,7 @@ alter table tarraco_private.registration_requests add column if not exists confi
 create or replace function public.tarraco_registration_status(p_hash text)
 returns text language sql stable security definer set search_path = '' as $$
  select case
- when r.state='code_pending' then 'confirm_code'
+ when r.state='code_pending' then case when r.confirmation_attempts>=5 then 'review' else 'confirm_code' end
  when r.link_state is not null and r.state='pending' and r.link_state='review' then case when r.code_attempts<3 then 'needs_code' else 'review' end
  when r.link_state is not null and r.state='pending' then 'pending'
  when r.state='rejected' and r.link_state is not null then 'rejected'
