@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.95.3";
 
 const url = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,13 +35,40 @@ function registrationDetails(company: RegistrationCompany) {
     "\nTeléfono: " + (company.phone ?? "—") + "\nCorreo: " + (company.email ?? "—");
 }
 
-function markRegistrationAuthorized(chat: number, message: number, company: RegistrationCompany) {
+function markRegistrationDecision(chat: number, message: number, company: RegistrationCompany, authorized: boolean) {
   return telegram("editMessageText", {
     chat_id: chat,
     message_id: message,
-    text: "✅ Cuenta autorizada\n\n" + registrationDetails(company),
+    text: (authorized ? "✅ Cuenta autorizada" : "❌ Solicitud rechazada") + "\n\n" + registrationDetails(company),
     reply_markup: { inline_keyboard: [[{ text: "Ver empresas en Tarraco", url: portal + "#solicitudes" }]] },
   });
+}
+
+type LinkNotice = {
+  name: string;
+  tax_id: string;
+  phone: string;
+  email: string;
+  link_state: "matched" | "new" | "review";
+  candidate_name: string | null;
+  candidate_code: string | null;
+  state: string;
+};
+
+async function linkNotice(id: string): Promise<LinkNotice | null> {
+  const { data, error } = await admin.rpc("tarraco_registration_link_notice", { p_notice: id });
+  if (error) throw error;
+  return data?.[0] ?? null;
+}
+
+function linkNoticeDetails(notice: LinkNotice) {
+  const result = notice.link_state === "matched" && notice.candidate_code
+    ? "Ficha propuesta: " + notice.candidate_name + " · Código " + notice.candidate_code
+    : notice.link_state === "new"
+    ? "Cliente nuevo · Se creará su ficha al autorizar."
+    : "Vínculo pendiente · No hay una ficha que se pueda autorizar con estos datos.";
+  return "Restaurante: " + notice.name + "\nNIF/CIF: " + notice.tax_id +
+    "\nTeléfono: " + notice.phone + "\nCorreo: " + notice.email + "\n\n" + result;
 }
 
 function nextAttempt(attempts: number) {
@@ -66,6 +93,123 @@ async function ensureWebhook(secret: string) {
   return true;
 }
 
+type OrderNotice = {
+  id: string;
+  company_id: string;
+  status: string;
+  created_at: string;
+  requested_date: string | null;
+  fulfilment: string;
+  customer_notes: string | null;
+  changed_at?: string;
+  items: {
+    product_name_snapshot: string;
+    quantity: number;
+    unit_snapshot: string;
+    preparation_notes: string | null;
+  }[];
+};
+
+const orderTimestamp = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short",
+});
+const orderUnits: Record<string, string> = {
+  kg: "kg", unit: "piezas", box: "cajas", sack: "sacos", bag: "bolsas", dozen: "docenas",
+};
+const orderStatuses: Record<string, string> = {
+  pending: "Pendiente de confirmación", confirmed: "Confirmado", preparing: "Recibido y en preparación",
+  ready_for_pickup: "Listo para recoger", shipped: "Enviado", delivered: "Entregado",
+  cancelled: "Cancelado", rejected: "Rechazado",
+};
+
+async function sendOrderNotice(chat: number, job: {
+  kind: string; entity_id: string; order_snapshot: OrderNotice | null;
+}, webhookEnabled: boolean) {
+  let order = job.order_snapshot;
+  if (job.kind === "order_received_request") {
+    const { data, error } = await admin.from("orders").select(
+      "id,company_id,status,created_at,requested_date,fulfilment,customer_notes,tarraco_received_at,items:order_items(product_name_snapshot,quantity,unit_snapshot,preparation_notes)",
+    ).eq("id", job.entity_id).maybeSingle();
+    if (error) throw error;
+    if (!data || data.tarraco_received_at || !["pending", "confirmed", "preparing"].includes(data.status)) return;
+    order = data;
+    if (!webhookEnabled) throw new Error("El bot no tiene habilitada la confirmación de pedidos");
+  }
+  if (!order) throw new Error("Falta el detalle del pedido");
+  const { data: company, error } = await admin.from("companies").select("name")
+    .eq("id", order.company_id).maybeSingle();
+  if (error) throw error;
+
+  const updated = job.kind === "order_updated";
+  const header = updated ? "✏️ Pedido modificado por el cliente" : "🔔 Nuevo pedido · Confirmación de TARRACO";
+  const ref = order.id.slice(0, 8).toUpperCase();
+  const delivery = order.requested_date?.split("-").reverse().join("/") || "Sin fecha registrada";
+  const summary = [
+    header, "Pedido " + ref + " · " + (company?.name || "Empresa"),
+    "Fecha del pedido: " + orderTimestamp.format(new Date(order.created_at)),
+    "Fecha de entrega: " + delivery + " · " + (order.fulfilment === "pickup" ? "Recogida" : "Envío"),
+    "Estado: " + (orderStatuses[order.status] || order.status),
+    ...(order.changed_at ? ["Modificado: " + orderTimestamp.format(new Date(order.changed_at))] : []),
+    ...(order.customer_notes ? ["Observaciones: " + order.customer_notes] : []),
+    "", updated ? "Artículos tras la modificación:" : "Artículos:",
+    ...order.items.map((item) =>
+      "• " + item.product_name_snapshot + " — " + item.quantity + " " +
+      (orderUnits[item.unit_snapshot] || item.unit_snapshot) +
+      (item.preparation_notes ? " · Preparación: " + item.preparation_notes : "")),
+  ].join("\n");
+  const links = [[{ text: "Abrir pedido en Tarraco", url: portal + "?aviso=pedido&aviso_id=" + order.id }]];
+  const buttons = updated ? links : [[{ text: "Confirmar recepción del pedido", callback_data: "pedido:" + order.id }], ...links];
+
+  // Keep the complete details even when a long order exceeds Telegram's message limit.
+  const characters = Array.from(summary);
+  for (let offset = 0; offset < characters.length; offset += 1850) {
+    await telegram("sendMessage", {
+      chat_id: chat,
+      text: (offset ? "Pedido " + ref + " · continuación\n" : "") + characters.slice(offset, offset + 1850).join(""),
+      protect_content: true,
+      ...(offset === 0 ? { reply_markup: { inline_keyboard: buttons } } : {}),
+    });
+  }
+}
+
+type TelegramCallback = {
+  id: string;
+  data?: string;
+  from: { id: number };
+  message?: { message_id: number; chat: { id: number } };
+};
+
+async function canUseCallback(chat: { id: number; type: string }, callback: TelegramCallback) {
+  if (callback.message?.chat.id !== chat.id) return false;
+  if (chat.type === "private") return callback.from.id === chat.id;
+  const member = await telegram("getChatMember", { chat_id: chat.id, user_id: callback.from.id });
+  return ["creator", "administrator"].includes(member.status);
+}
+
+async function confirmOrder(callback: TelegramCallback) {
+  const id = callback.data?.match(/^pedido:([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/)?.[1];
+  if (!id || !callback.message) return;
+  const answer = (text: string) => telegram("answerCallbackQuery", { callback_query_id: callback.id, text, show_alert: true });
+  const chat = await destination();
+  if (!await canUseCallback(chat, callback)) {
+    await answer("Solo administración puede confirmar pedidos en el chat autorizado.");
+    return;
+  }
+  const { data: status, error } = await admin.rpc("tarraco_confirm_order_reception", { p_order: id });
+  if (error) throw error;
+  if (status !== "preparing") {
+    await answer(status ? "El pedido está en estado " + (orderStatuses[status] || status) + "." : "El pedido ya no está disponible.");
+    return;
+  }
+  await answer("Pedido recibido y en preparación. El cliente ya puede ver la confirmación.").catch(() => {});
+  await telegram("editMessageReplyMarkup", {
+    chat_id: chat.id, message_id: callback.message.message_id,
+    reply_markup: { inline_keyboard: [[{
+      text: "✓ Recepción confirmada · Ver pedido", url: portal + "?aviso=pedido&aviso_id=" + id,
+    }]] },
+  }).catch(() => {});
+}
+
 async function sendAlerts(secret: string, diagnostic: boolean) {
   const chat = await destination();
   const approvalEnabled = await ensureWebhook(secret);
@@ -81,7 +225,25 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
     let lastError = null;
     let registrationMessage = {};
     try {
-      if (job.kind === "registration") {
+      if (job.kind === "registration_link") {
+        const notice = await linkNotice(job.entity_id);
+        if (notice?.state === "pending") {
+          if (!approvalEnabled) throw new Error("Webhook de autorización no disponible");
+          const buttons = [{ text: "Rechazar", callback_data: "nl:no:" + job.entity_id }];
+          if (notice.link_state !== "review" && (notice.link_state === "new" || notice.candidate_code)) {
+            buttons.unshift({ text: "Autorizar", callback_data: "nl:si:" + job.entity_id });
+          }
+          const sentNotice = await telegram("sendMessage", {
+            chat_id: chat.id,
+            text: "🔔 Solicitud de acceso a TARRACO\n\n" + linkNoticeDetails(notice),
+            protect_content: true,
+            reply_markup: { inline_keyboard: [buttons, [{
+              text: "Ver solicitudes en Tarraco", url: portal + "#solicitudes",
+            }]] },
+          });
+          registrationMessage = { telegram_chat_id: chat.id, telegram_message_id: sentNotice.message_id };
+        }
+      } else if (job.kind === "registration") {
         const { data: company, error } = await admin.from("companies")
           .select("name,contact_name,phone,email,registration_pending").eq("id", job.entity_id).maybeSingle();
         if (error) throw error;
@@ -92,7 +254,10 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
             text: "🔔 Nueva solicitud de registro · Pendiente de autorización\n\n" + registrationDetails(company),
             protect_content: true,
             reply_markup: { inline_keyboard: approvalEnabled
-              ? [[{ text: "Autorizar registro", callback_data: "alta:" + job.entity_id }], ...buttons]
+              ? [[
+                { text: "Autorizar registro", callback_data: "alta:" + job.entity_id },
+                { text: "Rechazar registro", callback_data: "rechazar:" + job.entity_id },
+              ], ...buttons]
               : buttons },
           });
           registrationMessage = { telegram_chat_id: chat.id, telegram_message_id: notice.message_id };
@@ -107,8 +272,10 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
           const { data: company, error } = await admin.from("companies")
             .select("name,contact_name,phone,email,active").eq("id", job.entity_id).maybeSingle();
           if (error) throw error;
-          if (company?.active) await markRegistrationAuthorized(chat.id, notice.telegram_message_id, company);
+          if (company?.active) await markRegistrationDecision(chat.id, notice.telegram_message_id, company, true);
         }
+      } else if (job.kind === "order_received_request" || job.kind === "order_updated") {
+        await sendOrderNotice(chat.id, job, approvalEnabled);
       } else {
         const { data: message, error } = await admin.from("company_chat_messages")
           .select("company_id,sender_is_admin").eq("id", job.entity_id).maybeSingle();
@@ -139,70 +306,43 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
   return { sent, approvalEnabled };
 }
 
-async function sendApprovalEmails() {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) return { configured: false, sent: 0 };
-  const { data: config, error: configError } = await admin.from("notification_settings")
-    .select("sender_email").eq("id", 1).maybeSingle();
-  if (configError) throw configError;
-  const from = config?.sender_email?.trim();
-  if (!from) return { configured: false, sent: 0 };
-
-  const { data: jobs, error } = await admin.rpc("tarraco_claim_registration_approval_email");
-  if (error) throw error;
-  const results = await Promise.allSettled(jobs.map(async (job: {
-    company_id: string;
-    recipient: string;
-    attempts: number;
-  }) => {
-    let lastError: string | null = null;
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": "Bearer " + apiKey,
-          "Content-Type": "application/json",
-          "Idempotency-Key": "tarraco-registration-approval/" + job.company_id,
-        },
-        body: JSON.stringify({
-          from,
-          to: [job.recipient],
-          subject: "Cuenta autorizada · TARRACO SEA FOOD 2002 SL",
-          text: [
-            "Hola,",
-            "TARRACO SEA FOOD 2002 SL ha autorizado el acceso de tu empresa al portal de pedidos.",
-            "Si todavía tienes pendiente verificar tu correo electrónico, abre primero el mensaje de verificación que recibiste al registrarte.",
-            "Una vez verificado el correo, ya puedes iniciar sesión con el correo y la contraseña que usaste al registrarte: " + portal,
-            "Un saludo,\nTARRACO SEA FOOD 2002 SL",
-          ].join("\n\n"),
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!response.ok) lastError = "Proveedor de correo: " + response.status;
-    } catch {
-      lastError = "No se pudo conectar con el proveedor de correo";
-    }
-    const patch = lastError
-      ? { last_error: lastError, next_attempt_at: nextAttempt(job.attempts) }
-      : { last_error: null, sent_at: new Date().toISOString() };
-    const { error: saveError } = await admin.from("tarraco_registration_approval_email").update(patch)
-      .eq("company_id", job.company_id).eq("attempts", job.attempts);
-    if (saveError) throw saveError;
-    return lastError === null;
-  }));
-  if (results.some((result) => result.status === "rejected")) {
-    console.error("No se pudo registrar el resultado de uno o más correos de autorización");
+async function decideRegistrationLink(callback: TelegramCallback) {
+  const match = callback.data?.match(/^nl:(si|no):([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/);
+  if (!match || !callback.message) return;
+  const chat = await destination();
+  const answer = (text: string) => telegram("answerCallbackQuery", { callback_query_id: callback.id, text, show_alert: true });
+  if (!await canUseCallback(chat, callback)) {
+    await answer("Solo administración puede resolver solicitudes en el chat autorizado.");
+    return;
   }
-  return { configured: true, sent: results.filter((result) => result.status === "fulfilled" && result.value).length };
+  const { data: decision, error } = await admin.rpc("tarraco_decide_registration_link", {
+    p_notice: match[2], p_approve: match[1] === "si",
+  });
+  if (error) throw error;
+  if (decision === "review") {
+    await answer("La coincidencia requiere revisión. El acceso sigue pendiente.");
+    await telegram("editMessageReplyMarkup", {
+      chat_id: chat.id, message_id: callback.message.message_id,
+      reply_markup: { inline_keyboard: [[{ text: "Rechazar", callback_data: "nl:no:" + match[2] }]] },
+    }).catch(() => {});
+    return;
+  }
+  if (decision !== "authorized" && decision !== "rejected") {
+    await answer("Este aviso ya no está disponible. Comprueba si hay una solicitud más reciente.");
+    return;
+  }
+  const authorized = decision === "authorized";
+  await answer(authorized ? "Cuenta autorizada. El cliente ya puede iniciar sesión." : "Solicitud rechazada.").catch(() => {});
+  const notice = await linkNotice(match[2]);
+  if (notice) await telegram("editMessageText", {
+    chat_id: chat.id, message_id: callback.message.message_id,
+    text: (authorized ? "✅ Cuenta autorizada" : "❌ Solicitud rechazada") + "\n\n" + linkNoticeDetails(notice),
+    reply_markup: { inline_keyboard: [] },
+  }).catch(() => {});
 }
 
-async function approve(callback: {
-  id: string;
-  data?: string;
-  from: { id: number };
-  message?: { message_id: number; chat: { id: number } };
-}) {
-  const match = callback.data?.match(/^alta:([0-9a-f-]{36})$/);
+async function decideRegistration(callback: TelegramCallback) {
+  const match = callback.data?.match(/^(alta|rechazar):([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/);
   if (!match || !callback.message) return;
   const answer = (text: string) => telegram("answerCallbackQuery", { callback_query_id: callback.id, text, show_alert: true });
   const chat = await destination();
@@ -210,24 +350,25 @@ async function approve(callback: {
     await answer("Abre el aviso original en el chat autorizado.");
     return;
   }
-  const allowed = chat.type === "private" ? callback.from.id === chat.id
-    : ["creator", "administrator"].includes(
-      (await telegram("getChatMember", { chat_id: chat.id, user_id: callback.from.id })).status,
-    );
-  if (!allowed) {
-    await answer("Solo administración puede autorizar registros.");
+  if (!await canUseCallback(chat, callback)) {
+    await answer("Solo administración puede resolver solicitudes.");
     return;
   }
-  const { data, error } = await admin.from("companies").update({ active: true })
-    .eq("id", match[1]).eq("registration_pending", true).eq("active", false).select(registrationFields).maybeSingle();
+  const { data: decision, error } = await admin.rpc("tarraco_decide_registration", {
+    p_company: match[2],
+    p_approve: match[1] === "alta",
+  });
   if (error) throw error;
-  const { data: company, error: lookupError } = data ? { data, error: null } : await admin.from("companies")
-    .select(registrationFields).eq("id", match[1]).eq("active", true).maybeSingle();
-  if (lookupError) throw lookupError;
-  await answer(company ? "Cuenta autorizada en Tarraco Pedidos." : "La solicitud ya está resuelta o se ha retirado.");
-  if (company) {
-    await markRegistrationAuthorized(chat.id, callback.message.message_id, company).catch(() => {});
+  if (decision !== "authorized" && decision !== "rejected") {
+    await answer("La solicitud ya no está disponible.");
+    return;
   }
+  const { data: company, error: lookupError } = await admin.from("companies")
+    .select(registrationFields).eq("id", match[2]).maybeSingle();
+  if (lookupError) throw lookupError;
+  const authorized = decision === "authorized";
+  await answer(authorized ? "Cuenta autorizada en Tarraco Pedidos." : "Solicitud rechazada.").catch(() => {});
+  if (company) await markRegistrationDecision(chat.id, callback.message.message_id, company, authorized);
 }
 
 Deno.serve(async (req) => {
@@ -240,24 +381,16 @@ Deno.serve(async (req) => {
     const { data: authorized, error } = await admin.rpc("tarraco_telegram_worker_authorized", { p_secret: secret });
     if (error || !authorized) return new Response(null, { status: 401 });
     const payload = await req.json();
-    if (!token && (webhookSecret || payload.diagnostic === true)) {
+    if (!token) {
       return Response.json({ error: "Falta el bot de avisos urgentes" }, { status: 503 });
     }
     if (webhookSecret) {
-      if (payload.callback_query) await approve(payload.callback_query);
+      if (payload.callback_query?.data?.startsWith("pedido:")) await confirmOrder(payload.callback_query);
+      else if (payload.callback_query?.data?.startsWith("nl:")) await decideRegistrationLink(payload.callback_query);
+      else if (payload.callback_query) await decideRegistration(payload.callback_query);
       return Response.json({ ok: true });
     }
-    if (payload.diagnostic === true) return Response.json(await sendAlerts(secret, true));
-    const [email, telegram] = await Promise.allSettled([
-      sendApprovalEmails(),
-      token ? sendAlerts(secret, false) : Promise.reject(new Error("Falta el bot de avisos urgentes")),
-    ]);
-    if (email.status === "rejected") console.error("No se pudo procesar la cola de correos de autorización");
-    if (telegram.status === "rejected") throw telegram.reason;
-    return Response.json({
-      ...telegram.value,
-      approvalEmail: email.status === "fulfilled" ? email.value : { error: "No se pudo procesar el correo" },
-    });
+    return Response.json(await sendAlerts(secret, payload.diagnostic === true));
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Error en Telegram");
     return Response.json({ error: "No se pudo procesar el aviso de Telegram" }, { status: 502 });

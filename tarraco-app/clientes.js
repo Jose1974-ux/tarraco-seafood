@@ -20,7 +20,7 @@
   let page = 0;
   let showArchived = false;
 
-  window.mountTarracoCustomers = (root, { db, esc, companies, refresh, formatDate, orderLabels }) => {
+  window.mountTarracoCustomers = (root, { db, esc, companies, refresh, formatDate, orderLabels, pendingCompanyIds = new Set() }) => {
     const find = selector => root.querySelector(selector);
     root.innerHTML = `
       <section class="card">
@@ -47,7 +47,7 @@
     const detail = find('[data-client-detail]');
     const state = client => {
       if (client.archived_at) return 'Archivado';
-      if (client.registration_pending) return 'Pendiente de autorización';
+      if (client.registration_pending || pendingCompanyIds.has(client.id)) return 'Pendiente de autorización';
       if (client.registration_rejected_at) return 'Registro rechazado';
       if (!accounts.has(client.id)) return 'Sin registrar';
       return client.active ? 'Activo' : 'Bloqueado';

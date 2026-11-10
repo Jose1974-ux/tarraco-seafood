@@ -58,3 +58,9 @@ python scripts/prepare-tarraco-client-import.py /ruta/privada/clientes.json |
 Configura la conexión en el entorno de PostgreSQL o en un servicio de conexión privado. Añade `--apply` al comando de Python para confirmar la transacción después de revisar los totales y verificar una copia de seguridad. Una ejecución repetida conserva los cambios hechos en las fichas. Los posibles duplicados y los cruces con empresas existentes quedan fuera de la escritura. Cada ficha nueva empieza sin acceso al portal.
 
 Conserva el PDF y el JSON en una ubicación privada. La salida de `prepare-tarraco-client-import.py` contiene datos personales codificados y debe ir directamente a `psql`.
+
+### Registro por correo con autorización en Telegram
+
+Las solicitudes nuevas se guardan en privado. La cuenta usa correo y contraseña. Para un cliente existente se busca una sola ficha con NIF/CIF y nombre o alias, corroborados por el teléfono o el código de cliente. El cliente puede añadir el código si la primera búsqueda queda pendiente. La autorización vuelve a comprobar la ficha antes de enlazar la cuenta y habilitar el acceso. Si un establecimiento se declara nuevo, se crea su ficha al autorizar cuando no hay indicios de otra ficha existente.
+
+Para una prueba aislada, parte del esquema de TARRACO que ya incluye la migración de autorización exclusiva por Telegram del commit `28e88bb`. Aplica la migración del directorio y después la de vinculación. Usa cuentas, fichas y un bot de prueba. Verifica que el alta directa de Supabase siga desactivada y que el worker y el webhook compartan el secreto de la instancia de pruebas. En una futura publicación autorizada, confirma primero la copia de seguridad y la importación privada del directorio, aplica la migración y actualiza `tarraco-telegram` antes de activar el formulario nuevo y `tarraco-registration`.
