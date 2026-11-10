@@ -121,6 +121,15 @@ main>header #logout{font-size:12px!important;line-height:1.2!important;padding:8
 </style>
 <link rel="stylesheet" href="./tarraco-app/listado-diario.css">
 <link rel="stylesheet" href="./tarraco-app/catalogo.css">
+<style>
+#urgentAdminBanner{position:fixed;z-index:9998;top:65px;left:12px;right:12px;max-width:800px;margin:auto;background:#a20f0f;color:#fff;border:4px solid #ffd33d;border-radius:15px;padding:14px;box-shadow:0 10px 35px #0008;font-size:18px;font-weight:800}
+#urgentAdminBanner button,#urgentAdminAck{background:#ffd33d;color:#221900;font-weight:900;min-height:48px}
+#urgentAdminOverlay{position:fixed;inset:0;z-index:9999;background:#081c2ad9;display:flex;align-items:center;justify-content:center;padding:16px}
+#urgentAdminOverlay article{width:min(100%,560px);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;color:#172f3b}
+#urgentAdminOverlay h2{color:#a20f0f}
+#urgentAdminOverlay .urgent-text{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff0f0;padding:16px;border-radius:10px;font-size:18px}
+#urgentAdminOverlay button{display:block;width:100%;margin-top:12px}
+</style>
 </head>
 <body>
 <header><div class="brand"><div class="logo"><img src="data:image/webp;base64,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" alt="Logotipo original TARRACO SEA FOOD 2002 SL"></div><div><h1>TARRACO SEA FOOD 2002 SL</h1><p>Pedidos para empresas y restaurantes</p></div></div><div class="row"><span id="status" class="muted" style="color:#d5e5e8">Conectando…</span><button id="logout" class="secondary hidden" onclick="logout()">Cerrar sesión</button></div></header>
@@ -640,52 +649,7 @@ function printOrderSelection(page, chosen, items, getName){
  <script>
  document.getElementById('print').addEventListener('click',()=>window.print());
  window.addEventListener('load',()=>window.print());
- <\/script><style>
-#urgentAdminBanner{position:fixed;z-index:9998;top:65px;left:12px;right:12px;max-width:800px;margin:auto;background:#a20f0f;color:#fff;border:4px solid #ffd33d;border-radius:15px;padding:14px;box-shadow:0 10px 35px #0008;font-size:18px;font-weight:800}
-#urgentAdminBanner button,#urgentAdminAck{background:#ffd33d;color:#221900;font-weight:900;min-height:48px}
-#urgentAdminOverlay{position:fixed;inset:0;z-index:9999;background:#081c2ad9;display:flex;align-items:center;justify-content:center;padding:16px}
-#urgentAdminOverlay article{width:min(100%,560px);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:22px;color:#172f3b}
-#urgentAdminOverlay h2{color:#a20f0f}
-#urgentAdminOverlay .urgent-text{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff0f0;padding:16px;border-radius:10px;font-size:18px}
-#urgentAdminOverlay button{display:block;width:100%;margin-top:12px}
-</style>
-<script>
-(function(){
-let items=[],busy=false,selected=null;
-function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function banner(){
- let el=document.getElementById('urgentAdminBanner');if(!el){el=document.createElement('div');el.id='urgentAdminBanner';document.body.appendChild(el)}
- const pending=items.filter(x=>!x.acknowledged_at);
- el.style.display=profile?.role==='admin'&&pending.length?'block':'none';
- el.innerHTML=pending.length?'🚨 '+pending.length+' AVISO(S) URGENTE(S) SIN CONFIRMAR <button id="urgentAdminOpen">VER AVISO</button>':'';
-}
-function modal(){
- document.getElementById('urgentAdminOverlay')?.remove();
- const x=items.find(v=>v.id===selected);if(!x)return;
- const overlay=document.createElement('div');overlay.id='urgentAdminOverlay';
- overlay.innerHTML='<article role="dialog" aria-modal="true"><h2>🚨 SOLICITUD URGENTE</h2><p><b>Empresa:</b> '+safe(x.companies?.name||'Sin nombre')+'</p><p><b>Fecha:</b> '+safe(new Date(x.created_at).toLocaleString('es-ES'))+'</p><div class="urgent-text">'+safe(x.details)+'</div><p>Telegram pedidos: '+(x.sent_orders?'Enviado':'No confirmado')+' · Telegram importantes: '+(x.sent_important?'Enviado':'No confirmado')+'</p><p id="urgentAdminMessage" role="status"></p><button id="urgentAdminAck" '+(x.acknowledged_at?'disabled':'')+'>✓ Confirmar recepción</button><button id="urgentAdminClose" class="secondary">Cerrar y volver</button></article>';
- document.body.appendChild(overlay);
-}
-async function refreshUrgent(){
- if(profile?.role!=='admin'){items=[];selected=null;banner();modal();return}
- if(!db||busy)return;busy=true;
- try{const {data,error}=await db.functions.invoke('admin-urgent-requests',{body:{action:'list'}});if(error||!Array.isArray(data?.requests))throw error||Error('Sin respuesta');items=data.requests;banner();if(selected)modal()}
- catch(err){console.warn('Avisos urgentes',err?.message||err)}
- finally{busy=false}
-}
-document.addEventListener('click',async e=>{
- if(e.target.closest('#urgentAdminOpen')){selected=items.find(x=>!x.acknowledged_at)?.id;modal();return}
- if(e.target.closest('#urgentAdminClose')){selected=null;modal();return}
- const btn=e.target.closest('#urgentAdminAck');if(!btn||!selected)return;btn.disabled=true;
- document.getElementById('urgentAdminMessage').textContent='Confirmando…';
- try{const {data,error}=await db.functions.invoke('admin-urgent-requests',{body:{action:'ack',id:selected}});if(error||!data?.ok)throw error||Error('Error');items=items.map(x=>x.id===selected?{...x,acknowledged_at:new Date().toISOString()}:x);selected=null;banner();modal();refreshUrgent()}
- catch(err){btn.disabled=false;document.getElementById('urgentAdminMessage').textContent='No se pudo confirmar: '+(err.message||String(err))}
-});
-setInterval(()=>{if(!document.hidden)refreshUrgent()},15000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshUrgent()});
-setTimeout(refreshUrgent,1500);
-})();
-</script>
+ <\/script>
 </body></html>`;
  page.document.open();
  page.document.write(html);
@@ -1293,6 +1257,43 @@ $('panel').addEventListener('invalid',e=>{
  }
 },true);
 setInterval(updateOrderWindow,60000);
+
+
+(function(){
+let items=[],busy=false,selected=null;
+function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function banner(){
+ let el=document.getElementById('urgentAdminBanner');if(!el){el=document.createElement('div');el.id='urgentAdminBanner';document.body.appendChild(el)}
+ const pending=items.filter(x=>!x.acknowledged_at);
+ el.style.display=profile?.role==='admin'&&pending.length?'block':'none';
+ el.innerHTML=pending.length?'🚨 '+pending.length+' AVISO(S) URGENTE(S) SIN CONFIRMAR <button id="urgentAdminOpen">VER AVISO</button>':'';
+}
+function modal(){
+ document.getElementById('urgentAdminOverlay')?.remove();
+ const x=items.find(v=>v.id===selected);if(!x)return;
+ const overlay=document.createElement('div');overlay.id='urgentAdminOverlay';
+ overlay.innerHTML='<article role="dialog" aria-modal="true"><h2>🚨 SOLICITUD URGENTE</h2><p><b>Empresa:</b> '+safe(x.companies?.name||'Sin nombre')+'</p><p><b>Fecha:</b> '+safe(new Date(x.created_at).toLocaleString('es-ES'))+'</p><div class="urgent-text">'+safe(x.details)+'</div><p>Telegram pedidos: '+(x.sent_orders?'Enviado':'No confirmado')+' · Telegram importantes: '+(x.sent_important?'Enviado':'No confirmado')+'</p><p id="urgentAdminMessage" role="status"></p><button id="urgentAdminAck" '+(x.acknowledged_at?'disabled':'')+'>✓ Confirmar recepción</button><button id="urgentAdminClose" class="secondary">Cerrar y volver</button></article>';
+ document.body.appendChild(overlay);
+}
+async function refreshUrgent(){
+ if(profile?.role!=='admin'){items=[];selected=null;banner();modal();return}
+ if(!db||busy)return;busy=true;
+ try{const {data,error}=await db.functions.invoke('admin-urgent-requests',{body:{action:'list'}});if(error||!Array.isArray(data?.requests))throw error||Error('Sin respuesta');items=data.requests;banner();if(selected)modal()}
+ catch(err){console.warn('Avisos urgentes',err?.message||err)}
+ finally{busy=false}
+}
+document.addEventListener('click',async e=>{
+ if(e.target.closest('#urgentAdminOpen')){selected=items.find(x=>!x.acknowledged_at)?.id;modal();return}
+ if(e.target.closest('#urgentAdminClose')){selected=null;modal();return}
+ const btn=e.target.closest('#urgentAdminAck');if(!btn||!selected)return;btn.disabled=true;
+ document.getElementById('urgentAdminMessage').textContent='Confirmando…';
+ try{const {data,error}=await db.functions.invoke('admin-urgent-requests',{body:{action:'ack',id:selected}});if(error||!data?.ok)throw error||Error('Error');items=items.map(x=>x.id===selected?{...x,acknowledged_at:new Date().toISOString()}:x);selected=null;banner();modal();refreshUrgent()}
+ catch(err){btn.disabled=false;document.getElementById('urgentAdminMessage').textContent='No se pudo confirmar: '+(err.message||String(err))}
+});
+setInterval(()=>{if(!document.hidden)refreshUrgent()},15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshUrgent()});
+setTimeout(refreshUrgent,1500);
+})();
 
 boot().catch(e=>{$('status').textContent='No se pudo iniciar la conexión';msg(e.message,'error');console.error(e)});
 </script></body></html>
