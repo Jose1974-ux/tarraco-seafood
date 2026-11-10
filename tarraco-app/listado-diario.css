@@ -1,0 +1,53 @@
+.daily-order-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: .65rem;
+  margin-bottom: 1rem;
+}
+.daily-order-controls label,
+.daily-order-controls input { margin: 0; }
+.daily-order-controls input { display: block; min-height: 42px; }
+.daily-order-controls button:disabled { opacity: .5; cursor: default; }
+.daily-order-heading { display: block; padding: 0; margin-bottom: 1rem; background: transparent; color: inherit; }
+.daily-order-heading h3, .daily-order-heading p { margin: .3rem 0; }
+.daily-order-company { border: 1px solid #b7d3dc; border-radius: 10px; margin: 0 0 1rem; }
+.daily-order-company h4 { background: #e5f1f4; color: #133849; padding: .7rem; margin: 0; border-radius: 9px 9px 0 0; }
+.daily-order-reference { padding: 0 .7rem; }
+.daily-order-reference h5 { margin: .65rem 0 .3rem; }
+.daily-order-reference table { width: 100%; min-width: 0; table-layout: fixed; }
+.daily-order-reference td, .daily-order-reference th { min-width: 0; overflow-wrap: anywhere; vertical-align: top; }
+.daily-order-reference td { white-space: pre-wrap; }
+.daily-order-reference :is(th,td):nth-child(2) { width: 22%; }
+.daily-order-reference :is(th,td):nth-child(6) { width: 17%; }
+.daily-order-reference :is(th,td):nth-child(7) { width: 20%; }
+.daily-cell-label { display: none; }
+.daily-order-totals { margin: .7rem; padding-top: .5rem; border-top: 1px solid #b7d3dc; }
+
+@media screen and (max-width: 760px) {
+  .daily-order-controls label { flex-basis: 100%; }
+  .daily-order-reference table, .daily-order-reference tbody { display: block; }
+  .daily-order-reference thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .daily-order-reference tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid #b7d3dc; padding: .35rem 0; }
+  .daily-order-reference tr td:nth-child(n) { display: block; width: auto; padding: .35rem; border: 0; }
+  .daily-order-reference td:nth-child(1) { grid-column: span 1; }
+  .daily-order-reference td:nth-child(2) { grid-column: span 2; }
+  .daily-order-reference td:nth-child(n+6) { grid-column: 1 / -1; }
+  .daily-cell-label { display: block; font-size: .72rem; font-weight: 700; color: #18516a; }
+}
+
+@page tarracoDailyOrders { size: A4 landscape; margin: 11mm; }
+@media print {
+  body:has(.daily-order-document[data-daily-ready]) > :not(main),
+  body:has(.daily-order-document[data-daily-ready]) main > :not(#app),
+  body:has(.daily-order-document[data-daily-ready]) #app > :not(#panel),
+  #dailyOrderReport > :not(.daily-order-document) { display: none !important; }
+  body:has(.daily-order-document[data-daily-ready]),
+  body:has(.daily-order-document[data-daily-ready]) main,
+  #dailyOrderReport { margin: 0; padding: 0; width: auto; max-width: none; background: white; border: 0; box-shadow: none; }
+  .daily-order-document[data-daily-ready] { page: tarracoDailyOrders; color: #111; font: 10pt Arial, sans-serif; }
+  .daily-order-company { break-inside: avoid; }
+  .daily-order-company h4, .daily-order-reference h5 { break-after: avoid; }
+  .daily-order-reference tr, .daily-order-totals { break-inside: avoid; }
+  .daily-order-reference th, .daily-order-reference td { padding: 4px 6px; }
+}
