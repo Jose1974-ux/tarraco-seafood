@@ -357,7 +357,7 @@ $('registrationCodeForm').addEventListener('submit',async e=>{
  finally{button.disabled=false;registrationSubmittingCode=false}
 });
 setInterval(()=>{
- if(!document.hidden&&(!registrationState||registrationState==='pending'||registrationState==='needs_code'))refreshRegistrationStatus();
+ if(!document.hidden&&(!registrationState||registrationState==='pending'||registrationState==='needs_code'||registrationState==='review'))refreshRegistrationStatus();
 },5000);
 document.addEventListener('visibilitychange',()=>{
  if(!document.hidden)refreshRegistrationStatus();
