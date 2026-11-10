@@ -1,8 +1,7 @@
 alter table public.products
   add column catalog_group text,
   add column catalog_format text,
-  add column catalog_review text,
-  add constraint products_review_requires_inactive check (catalog_review is null or not active);
+  add column catalog_review text;
 
 alter table public.order_items
   add column product_code_snapshot text,
@@ -18,19 +17,29 @@ as $$
 declare
   article public.products%rowtype;
 begin
-  if tg_op = 'UPDATE' then
-    if new.product_id = old.product_id then
-      new.product_name_snapshot := old.product_name_snapshot;
-      new.product_code_snapshot := old.product_code_snapshot;
-      new.product_format_snapshot := old.product_format_snapshot;
-      new.price_unit_snapshot := old.price_unit_snapshot;
-      return new;
-    end if;
-  end if;
-
   select * into article from public.products where id = new.product_id;
   if not found or (not article.active and not public.is_admin()) then
     raise exception 'La variedad no está disponible para esta empresa';
+  end if;
+
+  if article.default_price is null and not exists (
+    select 1 from public.company_prices tariff
+    where tariff.company_id = public.my_company_id() and tariff.product_id = article.id
+      and tariff.price is not null
+  ) and not (
+    article.offer_price is not null
+    and (article.offer_until is null or article.offer_until >= (statement_timestamp() at time zone 'UTC')::date)
+    and coalesce((select offer.allowed from public.my_targeted_offers() offer where offer.product_id = article.id), true)
+  ) then
+    raise exception 'El artículo todavía no tiene precio';
+  end if;
+
+  if tg_op = 'UPDATE' and new.product_id = old.product_id then
+    new.product_name_snapshot := old.product_name_snapshot;
+    new.product_code_snapshot := old.product_code_snapshot;
+    new.product_format_snapshot := old.product_format_snapshot;
+    new.price_unit_snapshot := old.price_unit_snapshot;
+    return new;
   end if;
   new.product_name_snapshot := article.name;
   new.product_code_snapshot := article.product_code;
