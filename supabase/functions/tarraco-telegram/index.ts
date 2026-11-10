@@ -66,6 +66,123 @@ async function ensureWebhook(secret: string) {
   return true;
 }
 
+type OrderNotice = {
+  id: string;
+  company_id: string;
+  status: string;
+  created_at: string;
+  requested_date: string | null;
+  fulfilment: string;
+  customer_notes: string | null;
+  changed_at?: string;
+  items: {
+    product_name_snapshot: string;
+    quantity: number;
+    unit_snapshot: string;
+    preparation_notes: string | null;
+  }[];
+};
+
+const orderTimestamp = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid", dateStyle: "short", timeStyle: "short",
+});
+const orderUnits: Record<string, string> = {
+  kg: "kg", unit: "piezas", box: "cajas", sack: "sacos", bag: "bolsas", dozen: "docenas",
+};
+const orderStatuses: Record<string, string> = {
+  pending: "Pendiente de confirmación", confirmed: "Confirmado", preparing: "Recibido y en preparación",
+  ready_for_pickup: "Listo para recoger", shipped: "Enviado", delivered: "Entregado",
+  cancelled: "Cancelado", rejected: "Rechazado",
+};
+
+async function sendOrderNotice(chat: number, job: {
+  kind: string; entity_id: string; order_snapshot: OrderNotice | null;
+}, webhookEnabled: boolean) {
+  let order = job.order_snapshot;
+  if (job.kind === "order_received_request") {
+    const { data, error } = await admin.from("orders").select(
+      "id,company_id,status,created_at,requested_date,fulfilment,customer_notes,tarraco_received_at,items:order_items(product_name_snapshot,quantity,unit_snapshot,preparation_notes)",
+    ).eq("id", job.entity_id).maybeSingle();
+    if (error) throw error;
+    if (!data || data.tarraco_received_at || !["pending", "confirmed", "preparing"].includes(data.status)) return;
+    order = data;
+    if (!webhookEnabled) throw new Error("El bot no tiene habilitada la confirmación de pedidos");
+  }
+  if (!order) throw new Error("Falta el detalle del pedido");
+  const { data: company, error } = await admin.from("companies").select("name")
+    .eq("id", order.company_id).maybeSingle();
+  if (error) throw error;
+
+  const updated = job.kind === "order_updated";
+  const header = updated ? "✏️ Pedido modificado por el cliente" : "🔔 Nuevo pedido · Confirmación de TARRACO";
+  const ref = order.id.slice(0, 8).toUpperCase();
+  const delivery = order.requested_date?.split("-").reverse().join("/") || "Sin fecha registrada";
+  const summary = [
+    header, "Pedido " + ref + " · " + (company?.name || "Empresa"),
+    "Fecha del pedido: " + orderTimestamp.format(new Date(order.created_at)),
+    "Fecha de entrega: " + delivery + " · " + (order.fulfilment === "pickup" ? "Recogida" : "Envío"),
+    "Estado: " + (orderStatuses[order.status] || order.status),
+    ...(order.changed_at ? ["Modificado: " + orderTimestamp.format(new Date(order.changed_at))] : []),
+    ...(order.customer_notes ? ["Observaciones: " + order.customer_notes] : []),
+    "", updated ? "Artículos tras la modificación:" : "Artículos:",
+    ...order.items.map((item) =>
+      "• " + item.product_name_snapshot + " — " + item.quantity + " " +
+      (orderUnits[item.unit_snapshot] || item.unit_snapshot) +
+      (item.preparation_notes ? " · Preparación: " + item.preparation_notes : "")),
+  ].join("\n");
+  const links = [[{ text: "Abrir pedido en Tarraco", url: portal + "?aviso=pedido&aviso_id=" + order.id }]];
+  const buttons = updated ? links : [[{ text: "Confirmar recepción del pedido", callback_data: "pedido:" + order.id }], ...links];
+
+  // Keep the complete details even when a long order exceeds Telegram's message limit.
+  const characters = Array.from(summary);
+  for (let offset = 0; offset < characters.length; offset += 1850) {
+    await telegram("sendMessage", {
+      chat_id: chat,
+      text: (offset ? "Pedido " + ref + " · continuación\n" : "") + characters.slice(offset, offset + 1850).join(""),
+      protect_content: true,
+      ...(offset === 0 ? { reply_markup: { inline_keyboard: buttons } } : {}),
+    });
+  }
+}
+
+type TelegramCallback = {
+  id: string;
+  data?: string;
+  from: { id: number };
+  message?: { message_id: number; chat: { id: number } };
+};
+
+async function canUseCallback(chat: { id: number; type: string }, callback: TelegramCallback) {
+  if (callback.message?.chat.id !== chat.id) return false;
+  if (chat.type === "private") return callback.from.id === chat.id;
+  const member = await telegram("getChatMember", { chat_id: chat.id, user_id: callback.from.id });
+  return ["creator", "administrator"].includes(member.status);
+}
+
+async function confirmOrder(callback: TelegramCallback) {
+  const id = callback.data?.match(/^pedido:([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/)?.[1];
+  if (!id || !callback.message) return;
+  const answer = (text: string) => telegram("answerCallbackQuery", { callback_query_id: callback.id, text, show_alert: true });
+  const chat = await destination();
+  if (!await canUseCallback(chat, callback)) {
+    await answer("Solo administración puede confirmar pedidos en el chat autorizado.");
+    return;
+  }
+  const { data: status, error } = await admin.rpc("tarraco_confirm_order_reception", { p_order: id });
+  if (error) throw error;
+  if (status !== "preparing") {
+    await answer(status ? "El pedido está en estado " + (orderStatuses[status] || status) + "." : "El pedido ya no está disponible.");
+    return;
+  }
+  await answer("Pedido recibido y en preparación. El cliente ya puede ver la confirmación.").catch(() => {});
+  await telegram("editMessageReplyMarkup", {
+    chat_id: chat.id, message_id: callback.message.message_id,
+    reply_markup: { inline_keyboard: [[{
+      text: "✓ Recepción confirmada · Ver pedido", url: portal + "?aviso=pedido&aviso_id=" + id,
+    }]] },
+  }).catch(() => {});
+}
+
 async function sendAlerts(secret: string, diagnostic: boolean) {
   const chat = await destination();
   const approvalEnabled = await ensureWebhook(secret);
@@ -112,6 +229,8 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
           if (error) throw error;
           if (company?.active) await markRegistrationDecision(chat.id, notice.telegram_message_id, company, true);
         }
+      } else if (job.kind === "order_received_request" || job.kind === "order_updated") {
+        await sendOrderNotice(chat.id, job, approvalEnabled);
       } else {
         const { data: message, error } = await admin.from("company_chat_messages")
           .select("company_id,sender_is_admin").eq("id", job.entity_id).maybeSingle();
@@ -142,12 +261,7 @@ async function sendAlerts(secret: string, diagnostic: boolean) {
   return { sent, approvalEnabled };
 }
 
-async function decideRegistration(callback: {
-  id: string;
-  data?: string;
-  from: { id: number };
-  message?: { message_id: number; chat: { id: number } };
-}) {
+async function decideRegistration(callback: TelegramCallback) {
   const match = callback.data?.match(/^(alta|rechazar):([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/);
   if (!match || !callback.message) return;
   const answer = (text: string) => telegram("answerCallbackQuery", { callback_query_id: callback.id, text, show_alert: true });
@@ -156,11 +270,7 @@ async function decideRegistration(callback: {
     await answer("Abre el aviso original en el chat autorizado.");
     return;
   }
-  const allowed = chat.type === "private" ? callback.from.id === chat.id
-    : ["creator", "administrator"].includes(
-      (await telegram("getChatMember", { chat_id: chat.id, user_id: callback.from.id })).status,
-    );
-  if (!allowed) {
+  if (!await canUseCallback(chat, callback)) {
     await answer("Solo administración puede resolver solicitudes.");
     return;
   }
@@ -195,7 +305,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Falta el bot de avisos urgentes" }, { status: 503 });
     }
     if (webhookSecret) {
-      if (payload.callback_query) await decideRegistration(payload.callback_query);
+      if (payload.callback_query?.data?.startsWith("pedido:")) await confirmOrder(payload.callback_query);
+      else if (payload.callback_query) await decideRegistration(payload.callback_query);
       return Response.json({ ok: true });
     }
     return Response.json(await sendAlerts(secret, payload.diagnostic === true));
