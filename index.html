@@ -124,7 +124,7 @@ main>header #logout{font-size:12px!important;line-height:1.2!important;padding:8
 <main class="wrap"><section class="hero"><div><h2>Tu pescado. Tus clientes. Tus pedidos.</h2><p>Gestiona empresas, tarifas personalizadas y pedidos desde un solo lugar.</p></div><figure class="header-photo"><img src="./a_wide_horizontal_marketing_banner_identical_to_t.png" alt="Selección de pescados y mariscos frescos de TARRACO SEA FOOD" loading="eager"></figure></section><script>const sessionHeader=document.querySelector("body>header");sessionHeader.querySelector(".brand")?.remove();document.querySelector(".hero").after(sessionHeader);
 </script><div id="notice" class="notice hidden"></div>
 <section id="login" class="card login-card" style="max-width:470px;margin:35px auto"><div class="tarraco-login-install"><a href="./instalar.html" class="tarraco-install-button" data-tarraco-install>INSTALAR TARRACO</a><p>Abre tus pedidos desde el icono de TARRACO.</p></div><h2>Acceso privado</h2><p class="muted">Accede con tu correo electrónico o móvil vinculado a tu cuenta y tu contraseña.</p><div id="registrationStatus" class="chat-notice hidden">
-<p id="registrationStatusMessage" role="status" aria-live="polite"></p>
+<p id="registrationStatusMessage" role="status" aria-live="polite"></p><button type="button" id="dismissRegistrationStatus" class="secondary">Ocultar este aviso</button>
 <button type="button" id="registrationLoginButton" class="secondary hidden">Ir a iniciar sesión</button>
 <form id="registrationCodeForm" class="hidden">
 <label for="registrationCode">Código de cliente TARRACO</label>
@@ -252,10 +252,12 @@ const registrationMessages={
  review:'Tu solicitud sigue pendiente de revisión. Contacta con TARRACO para confirmar los datos del restaurante.',
  authorized:'✓ Tu empresa ha sido autorizada. Ya puedes iniciar sesión con el correo y la contraseña del registro.',
  rejected:'Solicitud rechazada. Contacta con TARRACO SEA FOOD si necesitas más información.',
- unavailable:'La solicitud ya no está disponible. Contacta con TARRACO SEA FOOD.'
+ unavailable:'La solicitud ya no está disponible. Puedes iniciar sesión o solicitar un registro nuevo.'
 };
 let registrationTracking=null,registrationEmail=null,registrationAttempt=null;
 let registrationState=null,registrationCheck=null,registrationSubmittingCode=false;
+function clearOldRegistration(){registrationTracking=null;registrationEmail=null;registrationAttempt=null;registrationState=null;registrationCheck=null;try{localStorage.removeItem('tarraco_registration_tracking')}catch(e){}$('registrationStatus').classList.add('hidden')}
+$('dismissRegistrationStatus').addEventListener('click',clearOldRegistration);
 try{registrationTracking=localStorage.getItem('tarraco_registration_tracking')}catch(e){}
 function showRegistrationStatus(state){
  const message=registrationMessages[state];
@@ -279,6 +281,7 @@ async function refreshRegistrationStatus(){
   try{
    const {data,error}=await db.functions.invoke('tarraco-registration',{body:{action:'status',tracking}});
    if(!error&&registrationCheck===check&&registrationTracking===tracking&&!user&&$('registrationForm').classList.contains('hidden')){
+    if(data?.status==='unavailable'){clearOldRegistration();return 'unavailable'}
     showRegistrationStatus(data?.status);
     return data?.status;
    }
@@ -292,7 +295,7 @@ $('registrationLoginButton').addEventListener('click',()=>{
  const field=$('email').value.trim()?$('password'):$('email');
  field.focus();
 });
-$('showRegistration').addEventListener('click',()=>{$('registrationStatus').classList.add('hidden');$('registrationResult').textContent='';$('registrationResult').className='muted';$('registrationForm').classList.remove('hidden');$('loginForm').classList.add('hidden');$('showRegistration').classList.add('hidden')});
+$('showRegistration').addEventListener('click',()=>{clearOldRegistration();$('registrationStatus').classList.add('hidden');$('registrationResult').textContent='';$('registrationResult').className='muted';$('registrationForm').classList.remove('hidden');$('loginForm').classList.add('hidden');$('showRegistration').classList.add('hidden')});
 $('cancelRegistration').addEventListener('click',()=>{$('registrationForm').classList.add('hidden');$('loginForm').classList.remove('hidden');$('showRegistration').classList.remove('hidden');refreshRegistrationStatus().catch(()=>{})});
 $('registrationForm').addEventListener('submit',async e=>{
  e.preventDefault();const b=$('registerButton'),out=$('registrationResult');
