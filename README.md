@@ -38,3 +38,23 @@ Chrome y Android controlan el tono, la vibración y la entrega en segundo plano.
 Los tres pitidos personalizados se reproducen en el portal visible tras una
 interacción con la página. La entrega puede variar según la conexión, el modo
 No molestar y los permisos del dispositivo.
+
+### Preparar la importación de clientes
+
+Los datos del PDF se procesan fuera del repositorio. Se necesita Python 3.11 o posterior y Poppler.
+
+```sh
+python scripts/extract-tarraco-clients.py /ruta/privada/clientes.pdf /ruta/privada/clientes.json
+```
+
+Aplica la migración de CLIENTES en la base de pruebas. Usa una conexión privada con permisos de escritura y valida primero la operación con reversión automática.
+
+```sh
+set -o pipefail
+python scripts/prepare-tarraco-client-import.py /ruta/privada/clientes.json |
+  psql --no-psqlrc --set ON_ERROR_STOP=1
+```
+
+Configura la conexión en el entorno de PostgreSQL o en un servicio de conexión privado. Añade `--apply` al comando de Python para confirmar la transacción después de revisar los totales y verificar una copia de seguridad. Una ejecución repetida conserva los cambios hechos en las fichas. Los posibles duplicados y los cruces con empresas existentes quedan fuera de la escritura. Cada ficha nueva empieza sin acceso al portal.
+
+Conserva el PDF y el JSON en una ubicación privada. La salida de `prepare-tarraco-client-import.py` contiene datos personales codificados y debe ir directamente a `psql`.
