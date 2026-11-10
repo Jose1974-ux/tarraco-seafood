@@ -56,13 +56,20 @@
     function list() {
       const search = normalize(query.trim());
       const code = compact(search);
-      const rows = companies.filter(client => {
-        if (client.archived_at && !showArchived) return false;
-        if (!search) return true;
-        const names = [client.name, client.trade_name].some(name => normalize(name).includes(search));
-        return names || (code && [client.customer_code, client.tax_id, client.phone]
-          .some(value => compact(value).includes(code)));
-      });
+      const startsWithSearch = [];
+      const otherMatches = [];
+      for (const client of companies) {
+        if (client.archived_at && !showArchived) continue;
+        const names = [client.name, client.trade_name].map(normalize);
+        if (names.some(name => name.startsWith(search))) {
+          startsWithSearch.push(client);
+        } else if (names.some(name => name.includes(search)) ||
+          (code && [client.customer_code, client.tax_id, client.phone]
+            .some(value => compact(value).includes(code)))) {
+          otherMatches.push(client);
+        }
+      }
+      const rows = [...startsWithSearch, ...otherMatches];
       page = Math.min(page, Math.max(0, Math.ceil(rows.length / pageSize) - 1));
       const visible = rows.slice(page * pageSize, (page + 1) * pageSize);
       find('[data-client-results]').innerHTML = rows.length ? `
