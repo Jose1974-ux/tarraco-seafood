@@ -676,7 +676,7 @@ function productFields(p={}){
 }
 function adminProducts(){
  const groups=catalogGroups(products).filter(g=>g.key.startsWith('group:'));
- return `<section class="card"><h3>Catálogo (${products.length})</h3>${catalogNavigation()}
+ return `<section class="card"><h3>Catálogo (${products.length})</h3><div class="row" style="margin:10px 0"><button type="button" class="secondary" data-catalog-location="agotados" aria-pressed="${catalogLocation==='agotados'}">🚫 Ver todos los artículos agotados (${products.filter(p=>p.available_for_order===false).length})</button></div>${catalogNavigation()}
  <div id="catalogBrowseResults" class="hidden">
  <h4 id="catalogSectionTitle" tabindex="-1"></h4>
  <details class="catalog-group"><summary>Añadir producto o variedad</summary>
@@ -687,7 +687,7 @@ function adminProducts(){
  <label class="fav-filter"><input id="adminCatalogReview" type="checkbox" ${window.adminCatalogReview?'checked':''}> Pendientes o sin precio</label>
  <div class="row"><button type="button" class="secondary" id="bulkUnavailable">Marcar seleccionados sin existencias</button><button type="button" class="secondary" id="bulkAvailable">Marcar seleccionados disponibles</button></div>
  <p class="muted hidden" id="adminCatalogEmpty">No se encontraron artículos.</p>
- <div class="simple-products">${products.map(p=>`<details class="catalog-group catalog-admin-row" data-admin-product="${p.id}" data-section="${catalogSection(p)}" data-search="${esc(catalogSearchText(p))}" data-review="${!!p.catalog_review||p.default_price==null}">
+ <div class="simple-products">${products.map(p=>`<details class="catalog-group catalog-admin-row" data-admin-product="${p.id}" data-section="${catalogSection(p)}" data-search="${esc(catalogSearchText(p))}" data-review="${!!p.catalog_review||p.default_price==null}" data-unavailable="${p.available_for_order===false}">
  <summary>${esc(p.name)} · ${esc(p.product_code||'Sin código')} · ${esc(p.catalog_format||'Sin formato')} · ${p.default_price==null?'Sin precio':esc(euro(p.default_price)+' / '+(unitNames[p.unit]||p.unit))} · ${p.active?'Visible en Pedidos':'Inactivo'}</summary>
  <div class="catalog-variants"><form class="catalog-admin-form" data-edit-article="${p.id}">${productFields(p)}
  ${p.catalog_review?`<p class="notice">${esc(p.catalog_review)}</p><label><input type="checkbox" name="reviewed" style="width:auto"> Quitar nota de revisión</label>`:''}
@@ -705,7 +705,8 @@ function filterAdminCatalog(){
  window.adminCatalogReview=$('adminCatalogReview').checked;
  let found=false;
  for(const row of document.querySelectorAll('[data-admin-product]')){
-  const visible=row.dataset.section===catalogLocation&&catalogMatches(row.dataset.search,search.value)&&(!window.adminCatalogReview||row.dataset.review==='true');
+  const inSection=catalogLocation==='agotados'?row.dataset.unavailable==='true':row.dataset.section===catalogLocation;
+   const visible=inSection&&catalogMatches(row.dataset.search,search.value)&&(!window.adminCatalogReview||row.dataset.review==='true');
   row.classList.toggle('hidden',!visible);
   found ||= visible;
  }
@@ -829,11 +830,18 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  window.catalogQuery=query;
  if(!query.trim())selectedId=null;
  const frequent=onlyFrequent?frequentProductIds():null;
+ const byId=new Map(products.map(p=>[p.id,p]));
+ const typed=query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');
  const shown=[];
  for(const card of document.querySelectorAll('[data-catalog-item]')){
-  const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&(!query.trim()||((card.querySelector('.simple-product-head strong')?.textContent||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es').startsWith(query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es'))||((products.find(p=>p.id===card.dataset.catalogItem)?.product_code||'').toLowerCase().startsWith(query.trim().toLowerCase())))
+  const product=byId.get(card.dataset.catalogItem);
+  const productName=(card.querySelector('.simple-product-head strong')?.textContent||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');
+  const productCode=String(product?.product_code||'').toLocaleLowerCase('es');
+  const matchesSearch=!typed||productName.startsWith(typed)||productCode.startsWith(typed);
+  const visible=card.dataset.section===catalogLocation
+   &&(!selectedId||card.dataset.catalogItem===selectedId)&&matchesSearch
    &&(!onlyFavorites||card.dataset.favorite==='true')&&(!onlyOffers||card.dataset.offer==='true')
-   &&(!frequent||frequent.has(card.dataset.catalogItem))&&(!onlyUnavailable||products.some(p=>p.id===card.dataset.catalogItem&&p.available_for_order===false));
+   &&(!frequent||frequent.has(card.dataset.catalogItem))&&(!onlyUnavailable||product?.available_for_order===false);
   card.classList.toggle('hidden',!visible);
   if(visible)shown.push(card);
  }
@@ -850,7 +858,6 @@ function filterCatalog(showSuggestions=false,selectedId=null){
   offers.setAttribute('aria-pressed',String(onlyOffers));
   offers.textContent=onlyOffers?'← Ver todos los artículos':'Ver solo ofertas';
  }
- const byId=new Map(products.map(p=>[p.id,p]));
  const suggestions=showSuggestions&&query.trim()?shown.map(card=>byId.get(card.dataset.catalogItem))
   .sort((a,b)=>Number(b.product_code===query.trim())-Number(a.product_code===query.trim())):[];
  box.innerHTML=suggestions.map(p=>`<button type="button" class="catalog-suggestion" role="option" data-select-catalog="${p.id}">${esc(p.name)}<small>${esc([p.product_code,p.catalog_format].filter(Boolean).join(' · '))}</small></button>`).join('');
@@ -859,7 +866,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
 $('panel').addEventListener('click',e=>{
  const navigation=e.target.closest('[data-catalog-location]');
  if(navigation){
-  catalogLocation=navigation.dataset.catalogLocation;
+  catalogLocation=navigation.dataset.catalogLocation==='agotados'&&catalogLocation==='agotados'?'home':navigation.dataset.catalogLocation;
   const search=$('adminCatalogSearch')||$('catalogSearch');
   if(search)search.value='';
   if($('adminCatalogSearch')){
