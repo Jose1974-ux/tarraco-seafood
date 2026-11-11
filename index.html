@@ -852,7 +852,7 @@ function filterCatalog(showSuggestions=false,selectedId=null){
  for(const card of document.querySelectorAll('[data-catalog-item]')){
   const visible=card.dataset.section===catalogLocation&&(!selectedId||card.dataset.catalogItem===selectedId)&&catalogPrefixMatch(card.dataset.catalogItem,query)
    &&(!onlyFavorites||card.dataset.favorite==='true')&&(!onlyOffers||card.dataset.offer==='true')
-   &&(!frequent||frequent.has(card.dataset.catalogItem))&&(!onlyUnavailable||product?.available_for_order===false);
+   &&(!frequent||frequent.has(card.dataset.catalogItem))&&(!onlyUnavailable||products.some(p=>String(p.id)===String(card.dataset.catalogItem)&&p.available_for_order===false));
   card.classList.toggle('hidden',!visible);
   if(visible)shown.push(card);
  }
