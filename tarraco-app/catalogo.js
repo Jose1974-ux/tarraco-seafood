@@ -76,14 +76,17 @@ function catalogNavigation() {
 function updateCatalogNavigation() {
   const home = catalogLocation === 'home';
   const frozen = catalogLocation === 'frozen';
-  const label = catalogSections[catalogLocation];
+  const unavailable = catalogLocation === 'agotados';
+  const label = unavailable ? 'Artículos agotados' : catalogSections[catalogLocation];
   const heading = $('catalogNavigationTitle');
   heading.textContent = home ? 'Elige una sección' : 'Congelado';
   heading.classList.toggle('hidden', !home && !frozen);
   $('catalogMainChoices').classList.toggle('hidden', !home);
   $('catalogFrozenChoices').classList.toggle('hidden', !frozen);
   $('catalogBack').classList.toggle('hidden', home);
-  $('catalogBackToFrozen').classList.toggle('hidden', home || frozen || catalogLocation === 'fresh');
+  $('catalogBackToFrozen').classList.toggle('hidden', home || frozen || unavailable || catalogLocation === 'fresh');
   $('catalogBrowseResults').classList.toggle('hidden', !label);
   $('catalogSectionTitle').textContent = label ?? '';
+  const unavailableButton = document.querySelector('[data-catalog-location="agotados"]');
+  if (unavailableButton) unavailableButton.setAttribute('aria-pressed', String(unavailable));
 }
