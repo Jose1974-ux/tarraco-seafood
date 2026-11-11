@@ -29,7 +29,15 @@ gzip -t "$work/remote.gz"
 cmp "$work/$name" "$work/remote.gz"
 # Rotación conservadora: solo borrar ficheros .sql.gz que excedan siete.
 # Nunca borrar si no se puede listar el destino o la subida no se verificó.
-mapfile -t copies < <(aws s3 ls "$base/" | awk '/tarraco-db-[0-9]{4}-[0-9]{2}-[0-9]{2}\\.sql\\.gz$/ {print $4}' | sort)
+mapfile -t copies < <(aws s3 ls "$base/" | awk '{print $4}' | grep -E '^tarraco-db-[0-9]{4}-[0-9]{2}-[0-9]{2}\\.sql\\.gz
+if (( ${#copies[@]} > 7 )); then
+  for old in "${copies[@]:0:${#copies[@]}-7}"; do
+    aws s3 rm "$base/$old" --only-show-errors
+    aws s3 rm "$base/$old.sha256" --only-show-errors
+  done
+fi
+printf 'Copia verificada: %s (%s bytes comprimidos)\\n' "$name" "$(wc -c < "$work/$name")"
+ | sort || true)
 if (( ${#copies[@]} > 7 )); then
   for old in "${copies[@]:0:${#copies[@]}-7}"; do
     aws s3 rm "$base/$old" --only-show-errors
