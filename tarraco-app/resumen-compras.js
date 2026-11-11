@@ -9,7 +9,7 @@
     section.className = 'card';
     section.innerHTML = '<h3>Resumen general de compras</h3><p>Totales por artículo, variedad, formato y unidad para la fecha de entrega seleccionada.</p><button type="button" data-purchase-refresh>Actualizar resumen</button> <button type="button" data-purchase-export disabled>Descargar CSV</button><p data-purchase-status role="status"></p><div data-purchase-table></div>';
     root.append(section);
-    const dateInput = root.querySelector('.daily-order-controls input[type=date]');
+    const dateInput = root.querySelector('.daily-order-controls input[type="date"]');
     const status = section.querySelector('[data-purchase-status]');
     const table = section.querySelector('[data-purchase-table]');
     const exportButton = section.querySelector('[data-purchase-export]');
@@ -30,7 +30,7 @@
       rows = [];
       exportButton.disabled = true;
       table.replaceChildren();
-      if (!context.canRead() || !dateInput?.value) return;
+      if (!context.canRead() || !dateInput?.value) { status.textContent = 'Selecciona una fecha de entrega.'; return; }
       const day = dateInput.value;
       status.textContent = 'Calculando cantidades…';
       try {
