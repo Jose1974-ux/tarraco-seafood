@@ -36,3 +36,12 @@
   body.tarraco-printing>.tarraco-qr-print{display:block!important;text-align:center;color:#000;background:white}
   .tarraco-qr-print img{display:block;width:65mm;height:65mm;margin:10mm auto}
 }
+
+/* Filtros de catálogo: distinguir favoritos y productos frecuentes. */
+.fav-filter{display:inline-flex!important;align-items:center;gap:9px;margin:8px 8px 8px 0!important;padding:11px 15px!important;border:2px solid #b8cbd3;border-radius:12px;background:#f2f7fa;color:#173f53!important;font-size:14px!important;font-weight:800!important;cursor:pointer}
+.fav-filter input[type="checkbox"]{width:19px!important;height:19px!important;margin:0;flex:none;accent-color:#b45b14}
+.fav-filter:has(#onlyFavorites){border-color:#e8a153;background:#fff4e5;color:#8a4200!important}
+.fav-filter:has(#onlyFrequent){border-color:#5a9ca5;background:#e9f7f6;color:#14575d!important}
+.fav-filter:has(input:checked){box-shadow:0 0 0 3px rgba(20,87,93,.16);border-width:3px}
+.fav-filter:has(input:checked)::after{content:"✓ ACTIVO";font-size:11px;letter-spacing:.04em}
+.fav-filter:focus-within{outline:3px solid #e89a47;outline-offset:2px}
