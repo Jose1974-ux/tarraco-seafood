@@ -1,0 +1,42 @@
+name: TARRACO · copia diaria R2
+on:
+  schedule:
+    # 03:00 Europe/Madrid = 01:00 UTC (verano), 02:00 UTC (invierno).
+    - cron: '0 1,2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tarraco-daily-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.TARRACO_BACKUP_DATABASE_URL }}
+      BACKUP_S3_URI: ${{ secrets.TARRACO_R2_BUCKET_URI }}
+      R2_ENDPOINT_URL: ${{ secrets.TARRACO_R2_ENDPOINT_URL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.TARRACO_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TARRACO_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Comprobar hora peninsular
+        id: clock
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "$(TZ=Europe/Madrid date +%H)" == "03" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.clock.outputs.run == 'true'
+      - name: Instalar herramientas
+        if: steps.clock.outputs.run == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client awscli
+      - name: Copia cifrada y verificada en R2
+        if: steps.clock.outputs.run == 'true'
+        shell: bash
+        run: bash scripts/backup-tarraco-db.sh
